@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+[source: 2]<!DOCTYPE html>
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
@@ -1530,30 +1530,6 @@ function closeFormatDialog() {
   document.getElementById('formatDialog').classList.remove('show');
 }
 
-function saveToFile0(format) {
-  closeFormatDialog();
-  
-  let content, mimeType, fileExt;
-  if(format === 'txt') {
-    content = encodeToTxt();
-    mimeType = 'text/plain';
-    fileExt = '.txt';
-  } else {
-    content = encodeToLc();
-    mimeType = 'application/octet-stream';
-    fileExt = '.lc';
-  }
-  
-  const blob = new Blob([content], {type: mimeType});
-  let baseName = originalFileName.replace(/\.(lc|txt)$/i, '');
-  const downloadLink = document.createElement('a');
-  downloadLink.href = URL.createObjectURL(blob);
-  downloadLink.download = `${baseName}_edited${fileExt}`;
-  downloadLink.click();
-  URL.revokeObjectURL(downloadLink.href);
-  exitEditMode();
-}
-
 // ── ОБРОБКА ЖЕСТІВ (ГОРТАННЯ ЛІВОРУЧ/ПРАВОРУЧ) ──
 let touchStartX=0, touchStartY=0, touchIsMulti=false;
 let calDragActive=false, calDragDx=0, calWrapDragEl=null;
@@ -1578,16 +1554,16 @@ function saveToFile(format) {
   closeFormatDialog();
   let content, mimeType, ext;
   if (format === 'txt') {
-    content = ce();
+    content = encodeToTxt();
     mimeType = 'text/plain';
     ext = '.txt';
   } else {
-    content = ae();
+    content = encodeToLc();
     mimeType = 'application/octet-stream';
     ext = '.lc';
   }
 
-  let name = E.replace(/\.(lc|txt)$/i, "");
+  let name = (originalFileName || 'schedule').replace(/\.(lc|txt)$/i, "");
   const fileName = `${name}_edited${ext}`;
 
   // 1. Формуємо Data URI
@@ -1606,7 +1582,7 @@ function saveToFile(format) {
   // 2. Якщо відкрили в додатку Median
   if (window.median && typeof median.share === 'object') {
     median.share.sharePage({ url: dataUri, title: fileName });
-    se();
+    exitEditMode();
     return;
   }
 
@@ -1623,7 +1599,7 @@ function saveToFile(format) {
     window.location.href = dataUri;
   }
 
-  se();
+  exitEditMode();
 }
 
 // direction: 1 = свайп вліво (наступний місяць, потрібен правий край сторінки)
@@ -2589,96 +2565,52 @@ async function loadScheduleFromUrl(){
     const resp = await fetch(url);
     if(!resp.ok) throw new Error('HTTP ' + resp.status);
     const buffer = await resp.arrayBuffer();
-    // Реальна назва файлу з сервера (наприклад, від Worker'а - справжнє ім'я файлу
-    // з Google Drive, без розширення). HTTP-заголовки не підтримують кирилицю напряму,
-    // тому сервер передає назву у вигляді encodeURIComponent - тут її розкодовуємо назад.
-    // Якщо заголовка немає або він пошкоджений - буде порожньою, і тоді використовується
-    // SCHEDULE_URL_FILE_NAME як резервна назва.
+    
     let rawSourceName = '';
     try{ rawSourceName = decodeURIComponent(resp.headers.get('X-Source-File-Name') || ''); }
     catch(e){ rawSourceName = resp.headers.get('X-Source-File-Name') || ''; }
+    
     const sourceNameNoExt = rawSourceName.replace(/\.(txt|lc)$/i, '').trim();
     const fallbackName = sourceNameNoExt || SCHEDULE_URL_FILE_NAME;
-    // Визначення типу файлу (txt/lc): спочатку за розширенням у самому посиланні
-    // (якщо воно є) - для зворотної сумісності. Якщо розширення в посиланні немає
-    // (посилання "універсальне", без .txt/.lc) - визначаємо тип за заголовками
-    // відповіді сервера: реальною назвою файлу (X-Source-File-Name) або Content-Type.
+    
     const urlPath = url.split(/[?#]/)[0].toLowerCase();
-    let isTxtUrl;
-    if(urlPath.endsWith('.txt')){
-      isTxtUrl = true;
-    } else if(urlPath.endsWith('.lc')){
-      isTxtUrl = false;
-    } else {
-      const contentType = (resp.headers.get('Content-Type') || '').toLowerCase();
-      isTxtUrl = rawSourceName.toLowerCase().endsWith('.txt') || contentType.includes('text/plain');
-    }
-    if(isTxtUrl){
-      // Кодування визначається ОДИН раз тут, і розкодований текст іде напряму
-      // в parseTxtLines - без повторного (і ненадійного) визначення кодування всередині.
-      const encoding = detectTextEncoding(buffer);
-      const text = encoding === 'utf-8'
-        ? new TextDecoder('utf-8').decode(buffer)
-        : new TextDecoder('windows-1251').decode(buffer);
-      const breakIdx = text.indexOf('\n');
-      const firstLine = (breakIdx === -1 ? text : text.substring(0, breakIdx)).replace(/\r$/, '');
-      let nameToUse, contentToParse;
-      if(firstLine.trim() !== '' && !firstLine.startsWith('=')){
-        nameToUse = firstLine.trim();
-        contentToParse = breakIdx === -1 ? '' : text.substring(breakIdx + 1);
+    let isTxt = urlPath.endsWith('.txt');
+    
+    if (!isTxt && !urlPath.endsWith('.lc')) {
+      if (rawSourceName) {
+        isTxt = rawSourceName.toLowerCase().endsWith('.txt');
       } else {
-        nameToUse = fallbackName;
-        contentToParse = text;
+        const contentType = (resp.headers.get('Content-Type') || '').toLowerCase();
+        isTxt = contentType.includes('text') || contentType.includes('plain');
       }
-      isTxtFile = true;
-      channels = parseTxtLines(contentToParse);
-      originalFileName = nameToUse + '.txt';
-      fitFileName(SHOW_FILE_EXTENSION ? originalFileName : nameToUse);
-    } else {
-      isTxtFile = false;
-      channels = buildChannels(parseLc(buffer));
-      originalFileName = fallbackName + '.lc';
-      fitFileName(SHOW_FILE_EXTENSION ? originalFileName : fallbackName);
     }
+    
+    isTxtFile = isTxt;
+    if(isTxtFile){
+      channels = parseTxt(buffer);
+    } else {
+      channels = buildChannels(parseLc(buffer));
+    }
+    
+    const ext = isTxtFile ? '.txt' : '.lc';
+    const displayName = SHOW_FILE_EXTENSION ? (fallbackName + ext) : fallbackName;
+    originalFileName = fallbackName + ext;
+    fitFileName(displayName);
     applyLoadedChannels();
     return true;
-  }catch(e){
-    console.error('Помилка завантаження розкладу за посиланням:', e);
-    alert('Не вдалося завантажити розклад за посиланням: ' + e.message);
+  } catch(e){
+    console.error('Помилка завантаження за посиланням:', e);
     return false;
   }
 }
 
-(async function initSchedule(){
-  const loadedFromUrl = await loadScheduleFromUrl();
-  if(!loadedFromUrl) loadEmbeddedFile();
-  // якщо ні посилання, ні вбудований файл не дали даних - залишається стартова сторінка
-})();
-
-// Глобальні функції для HTML
-window.focusAndSelect = focusAndSelect;
-window.handleHoursInput = handleHoursInput;
-window.handleMinutesInput = handleMinutesInput;
-window.handleAddHoursInput = handleAddHoursInput;
-window.handleAddMinutesInput = handleAddMinutesInput;
-window.updateEventTimeFromFields = updateEventTimeFromFields;
-window.toggleEventType = toggleEventType;
-window.deleteEvent = deleteEvent;
-window.toggleAddEventType = toggleAddEventType;
-window.addNewEvent = addNewEvent;
-window.saveDayChanges = saveDayChanges;
-window.closeModal = closeModal;
-window.showModal = showModal;
-window.changeMonth = changeMonth;
-window.goToToday = goToToday;
-window.navBtnClick = navBtnClick;
-window.monthLabelClick = monthLabelClick;
-window.setChannel = setChannel;
-window.toggleDST = toggleDST;
-window.showFormatDialog = showFormatDialog;
-window.saveToFile = saveToFile;
-window.closeFormatDialog = closeFormatDialog;
-window.loadFile = loadFile;
+// Початковий запуск додатка
+window.addEventListener('DOMContentLoaded', async () => {
+  let loaded = await loadScheduleFromUrl();
+  if (!loaded) {
+    loadEmbeddedFile();
+  }
+});
 </script>
 </body>
 </html>
