@@ -1,0 +1,2694 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Календар освітлення + </title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌙</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f14;              /* фон сторінки */
+    --surface:#151820;         /* фон карток/клітинок */
+    --surface2:#1c2030;        /* фон кнопок, полів вводу, елементів "другого шару" */
+    --border:#4F4255;          /* колір рамок клітинок і роздільників */
+    --border-cell:#4F4255;     /* колір рамок клітинок і роздільників */
+    --accent-on:#f5a623;       /* колір часу "увімкнення" (помаранчевий) */
+    --accent-off:#4a9eff;      /* колір часу "вимкнення" (синій) */
+    --accent-on2:#ff6b35;      /* додатковий акцентний колір (наприклад, іконки/кнопки) */
+    --text:#e8eaf0;            /* основний колір тексту */
+    --text-dim:#a0a8b8;        /* приглушений колір тексту (підписи, підказки) */
+    --text-muted:#6b7280;      /* ще приглушеніший текст (напр. цифра "29" у віртуальній клітинці) */
+    --success:#2ecc71;         /* колір успіху/підтвердження (зелений) */
+    --danger:#e74c3c;          /* колір небезпечних дій (видалення, помилки) */
+
+    /* ── Підсвічування клітинок календаря ── */
+    --highlight-last-opened:#AFB1B8;      /* пунктирний контур останньо відкритої клітинки (світло-сірий) */
+    --highlight-pasted:#4a9eff;           /* пунктирний контур днів, куди вставляли дані (синій) */
+    --highlight-edited:#29B766;           /* пунктирний контур днів, які редагували/видаляли вручну (зелений) */
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Outfit',sans-serif;
+    min-height:100vh;
+    overflow-x:hidden;
+    user-select:none;
+  }
+  header{
+    background:linear-gradient(135deg,#0d0f14,#151c2e);
+    border-bottom:2px solid var(--border);
+    padding:5px 8px 5px;
+    position:sticky;
+    top:0;
+    z-index:100;
+  }
+  .header-top{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:4px;
+  }
+  .file-btn{
+    background:linear-gradient(135deg,var(--accent-on),var(--accent-on2));
+    color:#000;
+    border:none;
+    border-radius:7px;
+    padding:5px 6px;
+    font-size:18px;
+    cursor:pointer;
+    flex-shrink:0;
+    line-height:1;
+  }
+  .save-btn{
+    background:var(--surface2);
+    border:1px solid var(--success);
+    color:var(--success);
+    border-radius:7px;
+    padding:5px 8px;
+    font-size:16px;
+    cursor:pointer;
+    flex-shrink:0;
+    line-height:1;
+    display:none;
+  }
+  .save-btn.show{display:block;}
+  .file-info{
+    font-size:15px;
+    color:#c8d0e0;
+    font-family:'JetBrains Mono',monospace;
+    word-break:break-all;
+    line-height:1.3;
+    flex:1;
+    text-align:center;
+    overflow:hidden;
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    cursor:pointer;
+    border-radius:6px;
+    padding:1px 3px;
+  }
+  .file-info:active{background:rgba(255,255,255,0.05);}
+  #fileInput{display:none;}
+  .nav-row{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    flex-wrap:wrap;
+  }
+  .nav-btn{
+    background:var(--surface2);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:7px;
+    width:32px;
+    height:32px;
+    font-size:15px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  .month-label{
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:7px;
+    font-size:15px;
+    font-weight:600;
+    text-align:center;
+    flex:1;
+    padding:5px 4px;
+    cursor:pointer;
+    line-height:1.3;
+  }
+  .month-label:active{opacity:.7;}
+  .nav-spacer{flex:0 0 7px;}
+  .ch-btns{
+    display:flex;
+    gap:2px;
+    flex-shrink:0;
+  }
+  .ch-btn{
+    background:var(--surface2);
+    border:1px solid var(--border);
+    color:#c8d0e0;
+    border-radius:6px;
+    padding:4px 8px;
+    font-family:'Outfit',sans-serif;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .15s;
+  }
+  .ch-btn.active{
+    background:#C37C09;
+    border-color:var(--accent-on);
+    color:#000;
+  }
+  .dst-spacer{flex:0 0 7px;}
+  .dst-btn{
+    background:var(--surface2);
+    border:1px solid var(--border);
+    color:#c8d0e0;
+    border-radius:6px;
+    padding:4px 8px;
+    font-size:14px;
+    cursor:pointer;
+    transition:all .15s;
+    flex-shrink:0;
+  }
+  .dst-btn.active{
+    background:#2a5298;
+    border-color:#4a7fd4;
+  }
+  .weekdays{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:10px;
+    margin-top:5px;
+    border-top:1px solid var(--border);
+    padding-top:8px;
+  }
+  .weekday{
+    text-align:center;
+    font-size:12px;
+    font-weight:600;
+    color:#8890a0;
+    text-transform:uppercase;
+  }
+  #mainContent{
+    overflow:hidden;
+    position:relative;
+    touch-action:pan-x pan-y pinch-zoom;
+  }
+  .calendar-wrap{
+    padding:3px 5px;
+  }
+  .calendar-wrap.slide-from-right{
+    animation:calSlideFromRight .28s cubic-bezier(.25,.8,.35,1);
+  }
+  .calendar-wrap.slide-from-left{
+    animation:calSlideFromLeft .28s cubic-bezier(.25,.8,.35,1);
+  }
+  @keyframes calSlideFromRight{
+    from{transform:translateX(28%);opacity:0}
+    to{transform:translateX(0);opacity:1}
+  }
+  @keyframes calSlideFromLeft{
+    from{transform:translateX(-28%);opacity:0}
+    to{transform:translateX(0);opacity:1}
+  }
+  .days-grid{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:2px;
+    align-items:stretch;
+  }
+  .day-cell{
+    background:var(--surface);
+    border:1px solid var(--border-cell);
+    border-radius:8px;
+    padding:3px 2px;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+  }
+  .day-cell:active{opacity:.8;}
+  .day-cell.empty{
+    background:transparent;
+    border-color:transparent;
+    cursor:default;
+  }
+  .day-cell.today{
+    border-color:var(--accent-on);
+    background:var(--bg);
+  }
+  .day-cell.last-opened{
+    outline:1px dashed var(--highlight-last-opened);
+    outline-offset:1px;
+  }
+  .day-cell.no-data .day-num{
+    opacity:.25;
+  }
+  .day-cell.no-data .events{
+    visibility:hidden;
+  }
+  .day-cell.virtual-day{
+    border-style:dashed;
+  }
+  .day-cell.virtual-day .day-num{
+    color:#6b7280;
+  }
+  .day-num{
+    font-size:12px;
+    font-weight:600;
+    color:var(--text);
+    margin-bottom:2px;
+    line-height:1;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .day-cell.today .day-num span{
+    color:var(--accent-on);
+  }
+  .events{
+    display:grid;
+    gap:1px;
+    flex:1;
+  }
+  .event-chip{
+    border-radius:3px;
+    padding:1px 2px;
+    font-size:12px;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:600;
+    white-space:nowrap;
+    line-height:1.4;
+    min-height:18px;
+    text-align:center;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .chip-empty{
+    border-radius:3px;
+    background:transparent;
+    visibility:hidden;
+  }
+  .chip-on {
+    color:var(--accent-on); 
+    background:rgba(245,166,35,.12);
+  }
+  .chip-off{
+    color:var(--accent-off);
+    background:rgba(74,158,255,.10);
+  }
+  .chip-more{
+    font-size:11px;
+    font-weight:700;
+    color:#c8d0e0;
+    padding:1px 2px;
+    text-align:center;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .empty-state{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:60px 20px;
+    gap:16px;
+    text-align:center;
+  }
+  .empty-icon{font-size:52px;}
+  .empty-title{font-size:18px;font-weight:600;}
+  .empty-sub{
+    font-size:13px;
+    color:var(--text-dim);
+    line-height:1.5;
+    max-width:260px;
+  }
+  .upload-big-btn{
+    background:linear-gradient(135deg,var(--accent-on),var(--accent-on2));
+    color:#000;
+    border:none;
+    border-radius:12px;
+    padding:13px 26px;
+    font-family:'Outfit',sans-serif;
+    font-weight:700;
+    font-size:15px;
+    cursor:pointer;
+    margin-top:8px;
+  }
+  .hide-load-buttons .file-btn,
+  .hide-load-buttons .upload-big-btn{
+    display:none !important;
+  }
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.7);
+    z-index:200;
+    align-items:flex-end;
+    backdrop-filter:blur(4px);
+  }
+  .modal-overlay.show{display:flex;}
+  .modal{
+    background:var(--surface);
+    border-radius:20px 20px 0 0;
+    border-top:1px solid var(--border);
+    width:100%;
+    padding:20px;
+    max-height:85vh;
+    display:flex;
+    flex-direction:column;
+    animation:slideUp .25s ease;
+  }
+  @keyframes slideUp{
+    from{transform:translateY(100%)}
+    to{transform:translateY(0)}
+  }
+  .modal-handle{
+    width:36px;
+    height:4px;
+    background:var(--border);
+    border-radius:2px;
+    margin:0 auto 16px;
+    flex-shrink:0;
+  }
+  .modal-title{
+    font-size:18px;
+    font-weight:700;
+    margin-bottom:14px;
+    color:var(--accent-on);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:8px;
+    flex-shrink:0;
+  }
+  .modal-events-scroll{
+    flex:1;
+    overflow-y:auto;
+    margin-bottom:16px;
+  }
+  .modal-event{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:10px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .modal-event:last-child{border-bottom:none;}
+  .modal-event-time{
+    font-family:'JetBrains Mono',monospace;
+    font-size:24px;
+    font-weight:500;
+    min-width:90px;
+  }
+  .modal-event-label{
+    font-size:16px;
+    color:#c8d0e0;
+  }
+  .modal-event-badge{
+    margin-left:auto;
+    padding:4px 12px;
+    border-radius:20px;
+    font-size:13px;
+    font-weight:600;
+  }
+  .badge-on {background:rgba(245,166,35,.2); color:var(--accent-on);}
+  .badge-off{background:rgba(74,158,255,.15);color:var(--accent-off);}
+  .modal-close{
+    width:100%;
+    padding:12px;
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    color:var(--text);
+    font-family:'Outfit',sans-serif;
+    font-size:17px;
+    font-weight:500;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .save-day-btn{
+    display:none;
+    background:var(--success);
+    color:#000;
+    border:none;
+    padding:12px;
+    border-radius:10px;
+    font-weight:600;
+    font-size:16px;
+    cursor:pointer;
+    flex:1;
+  }
+  .modal-buttons-row{
+    display:flex;
+    gap:8px;
+    margin-top:16px;
+    flex-shrink:0;
+  }
+  /* Режим редагування: менші шрифти + показати кнопку Зберегти */
+  .modal.edit-mode .modal-event{ padding:8px 0; }
+  .modal.edit-mode .modal-event-time{ font-size:20px; }
+  .modal.edit-mode .modal-event-label{ font-size:14px; }
+  .modal.edit-mode .modal-event-badge{ font-size:12px; }
+  .modal.edit-mode .modal-close{ flex:1; width:auto; }
+  .modal.edit-mode .save-day-btn{ display:block; }
+  .modal.edit-mode .time-separator{ font-size:24px; }
+  .modal.edit-mode .edit-event-hours,
+  .modal.edit-mode .edit-event-minutes{ font-size:24px; width:55px; }
+  .modal.edit-mode .edit-event-type{ font-size:15px; padding:6px 18px; }
+  .modal.edit-mode .delete-event-btn{ font-size:15px; padding:6px 10px; }
+  .modal.edit-mode .add-event-hours,
+  .modal.edit-mode .add-event-minutes{ font-size:20px; width:48px; }
+  .modal.edit-mode .add-event-type-toggle{ font-size:15px; padding:6px 20px; }
+  .modal.edit-mode .add-event-title{ font-size:13px; margin-bottom:8px; }
+  .modal.edit-mode .add-event-controls{ gap:10px; }
+  /* Стилі для режиму редагування */
+  .time-separator{
+    font-size:28px;
+    font-weight:500;
+    margin:0 2px;
+    color:var(--text-dim);
+  }
+  .edit-event-time-container{
+    display:flex;
+    align-items:center;
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:4px 8px;
+  }
+  .edit-event-hours, .edit-event-minutes{
+    font-family:'JetBrains Mono',monospace;
+    font-size:28px;
+    font-weight:500;
+    width:65px;
+    text-align:center;
+    background:transparent;
+    border:none;
+    color:var(--text);
+    padding:4px 0;
+  }
+  .edit-event-hours:focus, .edit-event-minutes:focus{
+    outline:none;
+  }
+  .edit-event-time-container.on{
+    border-color:var(--accent-on);
+    background:rgba(245,166,35,0.1);
+  }
+  .edit-event-time-container.on .edit-event-hours,
+  .edit-event-time-container.on .edit-event-minutes{
+    color:var(--accent-on);
+  }
+  .edit-event-time-container.off{
+    border-color:var(--accent-off);
+    background:rgba(74,158,255,0.08);
+  }
+  .edit-event-time-container.off .edit-event-hours,
+  .edit-event-time-container.off .edit-event-minutes{
+    color:var(--accent-off);
+  }
+  
+  .edit-event-type{
+    font-size:16px;
+    font-weight:600;
+    cursor:pointer;
+    padding:8px 20px;
+    border-radius:10px;
+    transition:all 0.1s;
+    border:none;
+  }
+  .edit-event-type.on{
+    background:rgba(245,166,35,0.2);
+    color:var(--accent-on);
+  }
+  .edit-event-type.off{
+    background:rgba(74,158,255,0.15);
+    color:var(--accent-off);
+  }
+  
+  .delete-event-btn{
+    background:rgba(231,76,60,0.15);
+    border:1px solid var(--danger);
+    color:var(--danger);
+    border-radius:8px;
+    padding:8px 12px;
+    cursor:pointer;
+    font-size:16px;
+    margin-left:auto;
+  }
+  
+  .add-event-section{
+    background:var(--surface2);
+    border-radius:16px;
+    padding:12px 16px;
+    margin-top:16px;
+    flex-shrink:0;
+  }
+  .add-event-title{
+    font-size:14px;
+    font-weight:600;
+    margin-bottom:10px;
+    color:var(--accent-on);
+  }
+  .add-event-controls{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .add-event-time-container{
+    display:flex;
+    align-items:center;
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:4px 8px;
+  }
+  .add-event-time-container.on{
+    border-color:var(--accent-on);
+    background:rgba(245,166,35,0.1);
+  }
+  .add-event-time-container.on .add-event-hours,
+  .add-event-time-container.on .add-event-minutes{
+    color:var(--accent-on);
+  }
+  .add-event-time-container.off{
+    border-color:var(--accent-off);
+    background:rgba(74,158,255,0.08);
+  }
+  .add-event-time-container.off .add-event-hours,
+  .add-event-time-container.off .add-event-minutes{
+    color:var(--accent-off);
+  }
+  .add-event-hours, .add-event-minutes{
+    font-family:'JetBrains Mono',monospace;
+    font-size:24px;
+    font-weight:500;
+    width:55px;
+    text-align:center;
+    background:transparent;
+    border:none;
+    color:var(--text);
+    padding:4px 0;
+  }
+  .add-event-hours:focus, .add-event-minutes:focus{
+    outline:none;
+  }
+  
+  .add-event-type-toggle{
+    font-size:16px;
+    font-weight:600;
+    padding:8px 24px;
+    border-radius:10px;
+    cursor:pointer;
+    transition:all 0.1s;
+    border:none;
+  }
+  .add-event-type-toggle.on{
+    background:rgba(245,166,35,0.2);
+    color:var(--accent-on);
+  }
+  .add-event-type-toggle.off{
+    background:rgba(74,158,255,0.15);
+    color:var(--accent-off);
+  }
+  
+  .add-event-submit{
+    background:rgba(46,204,113,0.15);
+    border:1px solid var(--success);
+    color:var(--success);
+    border-radius:8px;
+    padding:8px 16px;
+    cursor:pointer;
+    font-size:18px;
+    font-weight:600;
+    margin-left:auto;
+  }
+  
+  
+  .format-dialog-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.8);
+    z-index:400;
+    align-items:center;
+    justify-content:center;
+  }
+  .format-dialog-overlay.show{display:flex;}
+  .format-dialog{
+    background:var(--surface);
+    border-radius:20px;
+    padding:24px;
+    width:280px;
+    text-align:center;
+    border:1px solid var(--border);
+  }
+  .format-dialog-title{
+    font-size:18px;
+    font-weight:600;
+    margin-bottom:16px;
+  }
+  .format-dialog-buttons{
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    margin-top:20px;
+  }
+  .format-btn{
+    padding:10px 20px;
+    border-radius:10px;
+    font-weight:600;
+    cursor:pointer;
+    border:none;
+  }
+  .format-btn.lc{
+    background:var(--accent-on);
+    color:#000;
+  }
+  .format-btn.txt{
+    background:var(--accent-off);
+    color:#000;
+  }
+  .format-btn.cancel{
+    background:var(--surface2);
+    border:1px solid var(--border);
+    color:var(--text);
+  }
+  
+  .no-data-message{
+    text-align:center;
+    padding:40px 20px;
+    color:var(--text-dim);
+    font-size:16px;
+  }
+
+  .cell-menu-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.8);
+    z-index:450;
+    align-items:center;
+    justify-content:center;
+  }
+  .cell-menu-overlay.show{display:flex;}
+  .cell-menu{
+    background:var(--surface);
+    border-radius:20px;
+    padding:20px;
+    width:280px;
+    border:1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .cell-menu-title{
+    font-size:16px;
+    font-weight:600;
+    text-align:center;
+    margin-bottom:6px;
+  }
+  .cell-menu-sub{
+    font-size:13px;
+    color:var(--text-dim);
+    text-align:center;
+    margin-top:-6px;
+    margin-bottom:6px;
+  }
+  .cell-menu-btn{
+    padding:12px;
+    border-radius:10px;
+    font-weight:600;
+    font-size:15px;
+    cursor:pointer;
+    border:1px solid var(--border);
+    background:var(--surface2);
+    color:var(--text);
+  }
+  .cell-menu-btn.danger{
+    background:rgba(239,68,68,0.12);
+    border-color:rgba(239,68,68,0.4);
+    color:#f87171;
+  }
+  .cell-menu-btn.cancel{
+    background:transparent;
+    border:none;
+    color:var(--text-dim);
+  }
+  .cell-menu-btn:disabled{
+    opacity:.35;
+    cursor:default;
+  }
+  .cell-menu-btn.active{
+    border-color:var(--accent-on);
+  }
+  .cell-menu-textarea{
+    width:100%;
+    min-height:80px;
+    padding:10px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:var(--surface2);
+    color:var(--text);
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    resize:vertical;
+    box-sizing:border-box;
+  }
+  .day-cell.pasted{
+    outline:1px dashed var(--highlight-pasted);
+    outline-offset:1px;
+  }
+  .day-cell.edited{
+    outline:1px dashed var(--highlight-edited);
+    outline-offset:1px;
+  }
+  .cell-menu-anchor{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 4px;
+    font-size:14px;
+    color:var(--text-dim);
+    cursor:pointer;
+  }
+  .cell-menu-anchor input[type="checkbox"]{
+    width:18px;
+    height:18px;
+    accent-color:var(--accent-off);
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <span class="file-info" id="fileInfo" oncontextmenu="return false">Файл не завантажено</span>
+    <button class="save-btn" id="saveBtn" onclick="showFormatDialog()" title="Зберегти файл">💾</button>
+    <button class="file-btn" title="Відкрити файл" onclick="document.getElementById('fileInput').click()">📂</button>
+    <input type="file" id="fileInput" accept=".txt,.lc,text/plain,application/octet-stream" onchange="loadFile(this)">
+  </div>
+  <div class="nav-row">
+    <button class="nav-btn" onclick="navBtnClick(-1)">‹</button>
+    <div class="month-label" id="monthLabel" onclick="monthLabelClick()">—</div>
+    <button class="nav-btn" onclick="navBtnClick(1)">›</button>
+    <div class="nav-spacer"></div>
+    <div class="ch-btns" id="chBtns" style="display:none">
+      <button class="ch-btn active" id="btnK1" onclick="setChannel(0)">К1</button>
+      <button class="ch-btn" id="btnK2" onclick="setChannel(1)">К2</button>
+    </div>
+    <div class="dst-spacer"></div>
+    <button class="dst-btn" id="btnDST" onclick="toggleDST()" title="Літній/Зимовий час">❄️</button>
+  </div>
+  <div class="weekdays">
+    <div class="weekday">Пн</div>
+    <div class="weekday">Вт</div>
+    <div class="weekday">Ср</div>
+    <div class="weekday">Чт</div>
+    <div class="weekday">Пт</div>
+    <div class="weekday">Сб</div>
+    <div class="weekday">Нд</div>
+  </div>
+</header>
+
+<div id="mainContent">
+  <div class="empty-state">
+    <div class="empty-icon">🌙</div>
+    <div class="empty-title">Календар освітлення + </div>
+    <div class="empty-sub">Завантажте .lc або .txt файл щоб побачити розклад</div>
+    <button class="upload-big-btn" onclick="document.getElementById('fileInput').click()">📂 Відкрити файл</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-events-scroll" id="modalEventsContainer">
+      <div id="modalEvents"></div>
+      <div id="editSection" style="display:none;"></div>
+    </div>
+    <div class="modal-buttons-row">
+      <button class="modal-close" onclick="closeModal()">Закрити</button>
+      <button class="save-day-btn" onclick="saveDayChanges()">💾 Зберегти</button>
+    </div>
+  </div>
+</div>
+
+<div class="cell-menu-overlay" id="cellMenuOverlay" onclick="closeCellMenu(event)">
+  <div class="cell-menu" id="cellMenuBox" onclick="event.stopPropagation()"></div>
+</div>
+
+<div class="format-dialog-overlay" id="formatDialog">
+  <div class="format-dialog">
+    <div class="format-dialog-title">💾 Виберіть формат збереження</div>
+    <div class="format-dialog-buttons">
+      <button class="format-btn lc" onclick="saveToFile('lc')">.lc</button>
+      <button class="format-btn txt" onclick="saveToFile('txt')">.txt</button>
+      <button class="format-btn cancel" onclick="closeFormatDialog()">Скасувати</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// КОНСТАНТИ НАЛАШТУВАНЬ (ЗМІНЮЙТЕ ТУТ)
+// ============================================================
+
+// ── ЗАВАНТАЖЕННЯ ФАЙЛУ РОЗКЛАДУ ЗА ПОСИЛАННЯМ (URL) ──
+// Для .txt файлу: якщо перший рядок НЕ починається з "=", він вважається назвою файлу
+const SCHEDULE_URL = `https://calendar-schedule-proxy.4300271.workers.dev/schedule`;
+const SAVE_FILE_UPLOAD_URL = 'https://calendar-save-file.4300271.workers.dev/upload';
+const SCHEDULE_URL_FILE_NAME = '💡Трускавець';
+
+// ── ВІДОБРАЖЕННЯ РОЗШИРЕННЯ У НАЗВІ URL ФАЙЛУ ──
+// false = розширення (.txt/.lc) НЕ показується в назві файлу (за замовчуванням)
+// true = розширення показується (стосується файлів, завантажених за посиланням)
+const SHOW_FILE_EXTENSION = false;
+
+// ── ВБУДОВАНИЙ ФАЙЛ РОЗКЛАДУ ──
+// вставте текст .txt файлу між наступними лапками:
+const EMBEDDED_FILE = ``;
+const EMBEDDED_FILE_NAME = '💡Трускавець -(30,25,20,10,10,25,20,20,0,20,25,30) (23.59-05.00) 2026';
+
+
+// ── РЕЖИМ ЛІТНЬОГО ЧАСУ ──
+const DEFAULT_DST = true;
+
+// ── РЕЖИМ ВІДОБРАЖЕННЯ КІЛЬКОСТІ ЯЧЕЙОК У КОМІРЦІ ──
+// 0 = авто (максимум по всьому місяцю і обох каналах)
+// 1, 2, 3, 4 = фіксована кількість ячейок (решта ховається у "+N")
+const CELLS_MODE = 0;
+
+// ── РЕЖИМ РЕДАГУВАННЯ ──
+// false = редагування ВИМКНЕНО (лише перегляд)
+// true = редагування ВВІМКНЕНО (довге натискання на назву файлу)
+let ENABLE_EDIT_MODE = false;
+
+// ── ВІДОБРАЖЕННЯ КНОПОК ЗАВАНТАЖЕННЯ ФАЙЛУ ──
+let SHOW_LOAD_BUTTONS = false;
+
+// ── СЕКРЕТНА КОМБІНАЦІЯ: 1x <, 2x >, 3x <, 4x >, потім натискання на місяць/рік ──
+// Розблоковує SHOW_LOAD_BUTTONS та ENABLE_EDIT_MODE
+const secretPattern0 = ['<','>','>','<','<','<','>','>','>','>','M'];
+const secretPattern = ['<','>','M','M','M'];
+
+// ── МАКСИМАЛЬНИЙ ЧАС ВВЕДЕННЯ СЕКРЕТНОЇ КОМБІНАЦІЇ (секунди) ──
+// Якщо між натисканнями пройде більше цього часу, введення скидається
+const SECRET_COMBO_TIMEOUT_SECONDS = 1.0;
+
+// ============================================================
+// КІНЕЦЬ НАЛАШТУВАНЬ
+// ============================================================
+
+if (!SHOW_LOAD_BUTTONS) {
+  document.body.classList.add('hide-load-buttons');
+}
+
+const MONTH_UK=['Січень','Лютий','Березень','Квітень','Травень','Червень',
+                'Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+
+let channels = [];
+let activeChannel = 0;
+let numChannels = 1;
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth();
+let fileLoaded = false;
+let isTxtFile = false;
+let dstActive = false;
+let editMode = false;
+let originalFileName = null;
+let lastSavedFilePath = null; // шлях (URL) до останнього збереженого через додаток віртуального файлу
+let currentEditDate = null;
+let lastOpenedCell = null; // { day, month, year, channel } — для легкого підсвічування останньо відкритої клітинки
+let cellMenuTarget = null; // { day, month, year, isVirtual }
+let cellLongPressTimer = null;
+let cellLongPressFired = false;
+let pendingPasteData = null;
+// "channel-year-month-day" → 'pasted' | 'edited'. Тип підсвічування = остання виконана дія над днем.
+// Прив'язано до конкретного каналу (К1/К2 мають окремі підсвічування).
+// Не очищується до завантаження нового файлу.
+let cellHighlights = new Map();
+let currentEditEvents = [];
+let newEventType = 'on';
+
+// ФУНКЦІЯ: Очищення стану при помилці
+function resetToEmptyState() {
+  channels = [];
+  activeChannel = 0;
+  numChannels = 1;
+  fileLoaded = false;
+  isTxtFile = false;
+  editMode = false;
+  originalFileName = null;
+  currentEditDate = null;
+  currentEditEvents = [];
+  document.getElementById('fileInfo').textContent = 'Файл не завантажено';
+  document.getElementById('saveBtn').classList.remove('show');
+  document.getElementById('chBtns').style.display = 'none';
+  document.getElementById('mainContent').innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">🌙</div>
+      <div class="empty-title">Календар освітлення + </div>
+      <div class="empty-sub">Завантажте .lc або .txt файл щоб побачити розклад</div>
+      <button class="upload-big-btn" onclick="document.getElementById('fileInput').click()">📂 Відкрити файл</button>
+    </div>
+  `;
+  resetCellsCache();
+}
+
+// ФУНКЦІЯ: Повертає дату останньої неділі вказаного місяця (потрібно для розрахунку переходів DST)
+function lastSunday(year, month) {
+  const d = new Date(year, month+1, 0);
+  d.setDate(d.getDate() - d.getDay());
+  return d;
+}
+
+// ФУНКЦІЯ: Перевіряє, чи припадає вказана дата на літній час
+function isSummerTime(date) {
+  if (!dstActive) return false;
+  const year = date.getFullYear();
+  const springChange = lastSunday(year, 2);
+  const fallChange = lastSunday(year, 9);
+  return date >= springChange && date < fallChange;
+}
+
+// ФУНКЦІЯ: Конвертація хвилин у текстовий формат HH:MM
+function minToHHMM(min) {
+  if(min >= 1440) min = 1439;
+  if(min < 0) min = 0;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+// ПРИ ПОКАЗІ: застосовуємо DST (+1 година, якщо активний)
+function applyDSTForDisplay(events, date) {
+  if (!dstActive || !isSummerTime(date)) return events;
+  return events.map(ev => ({ ...ev, min: ev.min + 60 }));
+}
+
+// ЗАПИС подій у файл (завжди в зимовому часі)
+function saveEventsDirect(date, events) {
+  if (!fileLoaded || !channels.length) return false;
+  const ch = channels[activeChannel];
+  
+  if (isTxtFile) {
+    const m = date.getMonth();
+    const d = date.getDate() - 1;
+    if (d < 0 || d > 30) return false;
+    
+    ch[m][d] = events.map(ev => ({
+      sign: ev.type === 'on' ? '+' : '-',
+      min: ev.min
+    }));
+    ch[m][d].sort((a, b) => a.min - b.min);
+    return true;
+  } else {
+    const MONTH_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const m = date.getMonth();
+    const d = date.getDate();
+    
+    let doy = d - 1;
+    for (let i = 0; i < m; i++) doy += MONTH_DAYS[i];
+    if (doy < 0 || doy >= 366) return false;
+    
+    ch[doy] = events.map(ev => ({
+      type: ev.type,
+      min: ev.min
+    }));
+    ch[doy].sort((a, b) => a.min - b.min);
+    return true;
+  }
+}
+
+// Отримання "сирих" подій (без DST) – те, що реально в файлі (зимовий час)
+function getRecordsRaw(date) {
+  if (!fileLoaded || !channels.length) return null;
+  const ch = channels[activeChannel] || channels[0];
+  
+  if (isTxtFile) {
+    const m = date.getMonth();
+    const d = date.getDate() - 1;
+    if (d < 0 || d > 30) return [];
+    const evs = ch[m] && ch[m][d];
+    if (!evs || !evs.length) return [];
+    return evs.map(e => ({ type: e.sign === '+' ? 'on' : 'off', min: e.min })).sort((a, b) => a.min - b.min);
+  } else {
+    const MONTH_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const m = date.getMonth();
+    const d = date.getDate();
+    let doy = d - 1;
+    for (let i = 0; i < m; i++) doy += MONTH_DAYS[i];
+    if (doy < 0 || doy >= 366) return null;
+    const recs = ch[doy];
+    if (!recs || !recs.length) return [];
+    return recs.slice().sort((a, b) => a.min - b.min);
+  }
+}
+
+// Отримання подій для відображення (з DST)
+function getRecordsForDisplay(date) {
+  const events = getRecordsRaw(date);
+  if (!events) return null;
+  return applyDSTForDisplay(events, date);
+}
+
+// ФУНКЦІЯ: Перевірка року на високосність
+function isLeapYear(year) {
+  return ((year % 4 === 0) && (year % 100 !== 0)) || (year % 400 === 0);
+}
+
+// ФУНКЦІЯ: Створює дато-подібний об'єкт для клітинки календаря.
+// Для 29 лютого в невисокосний рік звичайний Date нормалізується в 1 березня,
+// тому тут повертається "віртуальна" дата з правильними getMonth()/getDate(),
+// а для порівнянь часу (DST) використовується реальна дата 28 лютого.
+function makeCellDate(year, month, day) {
+  if (month === 1 && day === 29 && !isLeapYear(year)) {
+    const ref = new Date(year, 1, 28);
+    ref.setHours(0, 0, 0, 0);
+    return {
+      isVirtualFeb29: true,
+      getFullYear: () => year,
+      getMonth: () => 1,
+      getDate: () => 29,
+      getDay: () => null,
+      getTime: () => ref.getTime(),
+      valueOf: () => ref.getTime(),
+      setHours: () => {}
+    };
+  }
+  return new Date(year, month, day);
+}
+
+// ФУНКЦІЯ: Обробник натискання кнопки DST
+function toggleDST() {
+  dstActive = !dstActive;
+  const btn = document.getElementById('btnDST');
+  btn.textContent = dstActive ? '☀️' : '❄️';
+  btn.classList.toggle('active', dstActive);
+  renderCalendar();
+}
+
+// ФУНКЦІЯ: Адаптує та зменшує шрифт назви файлу
+function fitFileName(name){
+  const el=document.getElementById('fileInfo');
+  el.style.fontSize='16px';
+  el.textContent=name;
+  let size=15;
+  requestAnimationFrame(()=>{
+    for(let i=0;i<12&&size>6;i++){
+      if(el.scrollHeight>el.offsetHeight+2){
+        size--;
+        el.style.fontSize=size+'px';
+      } else break;
+    }
+  });
+}
+
+// ── LC ПАРСЕР (Для бінарних файлів контролерів .lc) ──
+function parseLc(buffer) {
+  const dv = new DataView(buffer);
+  const sig = String.fromCharCode(...new Uint8Array(buffer,0,8));
+  if (!sig.startsWith('eventc10')) throw new Error('Невірний формат (не eventc10)');
+  const N1 = dv.getUint16(8, true);
+  const N2 = dv.getUint16(10, true);
+  function readChannel(offset, count) {
+    const evs = [];
+    for (let i = 0; i < count; i++) {
+      const o = offset + i * 4;
+      if (o + 4 > buffer.byteLength) break;
+      evs.push(dv.getUint32(o, true));
+    }
+    return evs;
+  }
+  return [readChannel(12, N1), readChannel(12 + N1 * 4, N2)];
+}
+
+function buildChannels(rawChannels){
+  if (!rawChannels.length) return [];
+  const FLAG = 0x100000;
+  return rawChannels.map(raws => {
+    const dayArr = Array.from({length: 366}, () => []);
+    raws.forEach(raw => {
+      const isOn = (raw & FLAG) !== 0;
+      const minutes = isOn ? (raw ^ FLAG) : raw;
+      const dayIdx = Math.floor(minutes / 1440) - 1;
+      const tod = minutes % 1440;
+      if (dayIdx >= 0 && dayIdx < 366) {
+        dayArr[dayIdx].push({type: isOn ? 'on' : 'off', min: tod});
+      }
+    });
+    return dayArr;
+  });
+}
+
+// Створює порожній "новий файл" у пам'яті — та сама структура, що й у buildChannels,
+// щоб можна було редагувати і зберігати навіть без попередньо завантаженого файлу.
+function createNewFile() {
+  isTxtFile = false;
+  channels = [
+    Array.from({length: 366}, () => []),
+    Array.from({length: 366}, () => [])
+  ];
+  numChannels = 2;
+  activeChannel = 0;
+  fileLoaded = true;
+  originalFileName = 'Новий файл.lc';
+  document.getElementById('fileInfo').textContent = originalFileName;
+  document.getElementById('chBtns').style.display = 'flex';
+  document.getElementById('btnK1').classList.add('active');
+  document.getElementById('btnK2').classList.remove('active');
+  resetCellsCache();
+  goToToday();
+}
+
+// Функція для визначення кодування тексту (UTF-8 або Windows-1251)
+function detectTextEncoding(buffer) {
+  const bytes = new Uint8Array(buffer);
+  if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+    return 'utf-8';
+  }
+  try {
+    const utf8Text = new TextDecoder('utf-8').decode(buffer);
+    if (utf8Text.includes('Всі') || utf8Text.includes('каналу') || utf8Text.includes('події')) {
+      return 'utf-8';
+    }
+  } catch(e) {}
+  return 'windows-1251';
+}
+
+// ── TXT ПАРСЕР (Для текстових файлів) ──
+// Розбирає вже РОЗКОДОВАНИЙ текст (без повторного визначення кодування).
+function parseTxtLines(text) {
+  const lines = text.split('\n').map(l=>l.replace(/\r$/, ''));
+  const chData = [];
+  let currentCh = -1;
+  let currentDay = null;
+  let pendingLines = [];
+  function newChannel(){
+    chData.push(Array.from({length:12}, ()=>Array.from({length:31}, ()=>[])));
+    currentCh = chData.length-1;
+  }
+  function parseLine(line){
+    if(currentCh < 0 || currentDay === null) return;
+    const dayIdx = currentDay-1;
+    for(let m=0; m<12; m++){
+      const pos = 3 + m*7;
+      const cell = line.substring(pos, pos+6).trim();
+      if(!cell) continue;
+      const sign = cell[0];
+      if(sign !== '+' && sign !== '-') continue;
+      const parts = cell.substring(1).split(':');
+      if(parts.length !== 2) continue;
+      const hh = parseInt(parts[0]), mm = parseInt(parts[1]);
+      if(isNaN(hh)||isNaN(mm)) continue;
+      chData[currentCh][m][dayIdx].push({sign, min: hh*60+mm});
+    }
+  }
+  function flushDay(){
+    if(currentDay === null) return;
+    pendingLines.forEach(l=>parseLine(l));
+    pendingLines = [];
+    currentDay = null;
+  }
+  for(const line of lines){
+    if(line.startsWith('=')){
+      flushDay();
+      const isAll = line.includes('Вс') || line.includes('Все') || line.includes('все');
+      if(isAll) newChannel();
+      else currentCh = -1;
+      continue;
+    }
+    if(line.trim() === ''){ flushDay(); continue; }
+    const dayMatch = line.match(/^(\d{2}) /);
+    if(dayMatch){
+      flushDay();
+      currentDay = parseInt(dayMatch[1]);
+      pendingLines = [line];
+      continue;
+    }
+    if(currentCh >= 0 && currentDay !== null && line[0] === ' '){
+      pendingLines.push(line);
+    }
+  }
+  flushDay();
+  if(!chData.length) throw new Error('Не знайдено каналів у txt файлі');
+  return chData;
+}
+
+// Обгортка для сумісності: приймає сирі байти (ArrayBuffer), сама визначає
+// кодування один раз і розкодовує, потім розбирає через parseTxtLines.
+function parseTxt(buffer) {
+  const encoding = detectTextEncoding(buffer);
+  const text = encoding === 'utf-8'
+    ? new TextDecoder('utf-8').decode(buffer)
+    : new TextDecoder('windows-1251').decode(buffer);
+  return parseTxtLines(text);
+}
+
+// ── ЗАВАНТАЖЕННЯ ТА ОБРОБКА ФАЙЛІВ ──
+function loadFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  originalFileName = file.name;
+  lastSavedFilePath = file.name; // реальний шлях у файловій системі браузер не надає — доступна лише назва
+  fitFileName(file.name);
+  cellHighlights = new Map();
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      isTxtFile = file.name.toLowerCase().endsWith('.txt');
+      if(isTxtFile){
+        channels = parseTxt(e.target.result);
+      } else {
+        channels = buildChannels(parseLc(e.target.result));
+      }
+      numChannels = channels.length;
+      activeChannel = 0;
+      fileLoaded = true;
+      const chBtns = document.getElementById('chBtns');
+      chBtns.style.display = numChannels >= 2 ? 'flex' : 'none';
+      document.getElementById('btnK1').classList.add('active');
+      document.getElementById('btnK2').classList.remove('active');
+      resetCellsCache();
+      exitEditMode();
+      goToToday();
+    }catch(err){ 
+      console.error('Помилка:', err.message);
+      alert('Помилка завантаження: ' + err.message);
+      resetToEmptyState();
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function goToToday(){
+  const now = new Date();
+  currentYear = now.getFullYear();
+  currentMonth = now.getMonth();
+  renderCalendar();
+}
+
+function setChannel(ch){
+  activeChannel = ch;
+  document.getElementById('btnK1').classList.toggle('active', ch===0);
+  document.getElementById('btnK2').classList.toggle('active', ch===1);
+  renderCalendar();
+}
+
+let calendarSlideDir = null; // 'right' | 'left' | null
+
+function changeMonth(delta){
+  currentMonth += delta;
+  if(currentMonth > 11){ currentMonth = 0; currentYear++; }
+  if(currentMonth < 0){ currentMonth = 11; currentYear--; }
+  calendarSlideDir = delta > 0 ? 'right' : 'left';
+  renderCalendar();
+}
+
+let secretIndex = 0;
+let secretStartTime = 0;
+let editListenersAttached = false;
+
+function registerSecretClick(type) {
+  const now = Date.now();
+  if (secretIndex > 0 && (now - secretStartTime) > SECRET_COMBO_TIMEOUT_SECONDS * 1000) {
+    secretIndex = 0;
+  }
+
+  if (type === secretPattern[secretIndex]) {
+    if (secretIndex === 0) secretStartTime = now;
+    secretIndex++;
+    if (secretIndex === secretPattern.length) {
+      if (SHOW_LOAD_BUTTONS) {
+        SHOW_LOAD_BUTTONS = false;
+        ENABLE_EDIT_MODE = false;
+        if (editMode) exitEditMode();
+        document.body.classList.add('hide-load-buttons');
+        fitFileName(document.getElementById('fileInfo').textContent);
+      } else {
+        SHOW_LOAD_BUTTONS = true;
+        ENABLE_EDIT_MODE = true;
+        document.body.classList.remove('hide-load-buttons');
+        fitFileName(document.getElementById('fileInfo').textContent);
+        if (!editListenersAttached) {
+          attachEditModeListeners();
+          editListenersAttached = true;
+        }
+      }
+      secretIndex = 0;
+    }
+  } else {
+    secretIndex = (type === secretPattern[0]) ? 1 : 0;
+    if (secretIndex === 1) secretStartTime = now;
+  }
+}
+
+function navBtnClick(delta) {
+  registerSecretClick(delta < 0 ? '<' : '>');
+  changeMonth(delta);
+}
+
+function monthLabelClick() {
+  registerSecretClick('M');
+  goToToday();
+}
+
+// ── ДОВГЕ НАТИСКАННЯ ДЛЯ ВХОДУ В РЕЖИМ РЕДАГУВАННЯ (тільки якщо ENABLE_EDIT_MODE = true) ──
+let longPressTimer = null;
+let fileInfoElem = document.getElementById('fileInfo');
+
+function toggleEditMode() {
+  if(!ENABLE_EDIT_MODE) return;
+  if(editMode) {
+    exitEditMode();
+  } else {
+    enterEditMode();
+  }
+}
+
+function attachEditModeListeners() {
+  fileInfoElem.addEventListener('touchstart', (e) => {
+    longPressTimer = setTimeout(() => { toggleEditMode(); }, 500);
+  });
+  fileInfoElem.addEventListener('touchend', () => { if(longPressTimer) clearTimeout(longPressTimer); });
+  fileInfoElem.addEventListener('touchmove', () => { if(longPressTimer) clearTimeout(longPressTimer); });
+  fileInfoElem.addEventListener('mousedown', (e) => { longPressTimer = setTimeout(() => { toggleEditMode(); }, 500); });
+  fileInfoElem.addEventListener('mouseup', () => { if(longPressTimer) clearTimeout(longPressTimer); });
+  fileInfoElem.addEventListener('mouseleave', () => { if(longPressTimer) clearTimeout(longPressTimer); });
+}
+
+if(ENABLE_EDIT_MODE) {
+  attachEditModeListeners();
+  editListenersAttached = true;
+}
+
+function enterEditMode() {
+  if(!ENABLE_EDIT_MODE) return;
+  if(!fileLoaded) createNewFile();
+  editMode = true;
+  document.getElementById('saveBtn').classList.add('show');
+  fitFileName(document.getElementById('fileInfo').textContent);
+  renderCalendar();
+}
+
+function exitEditMode() {
+  editMode = false;
+  document.getElementById('saveBtn').classList.remove('show');
+  fitFileName(document.getElementById('fileInfo').textContent);
+  renderCalendar();
+}
+
+// ── ЕКСПОРТ В .LC ФОРМАТ ──
+function encodeToLc() {
+  const FLAG = 0x100000;
+  const firstDayOffset = 1440;
+  const dayEvents = [];
+  
+  for(let chIdx=0; chIdx<channels.length; chIdx++) {
+    const ch = channels[chIdx];
+    const rawEvents = [];
+    
+    if(Array.isArray(ch) && ch.length === 366) {
+      for(let doy=0; doy<366; doy++) {
+        const events = ch[doy] || [];
+        events.forEach(ev => {
+          let minutes = (doy+1) * firstDayOffset + ev.min;
+          if(ev.type === 'on') minutes |= FLAG;
+          rawEvents.push(minutes);
+        });
+      }
+    } 
+    else if(Array.isArray(ch) && ch.length === 12) {
+      const MONTH_DAYS = [31,29,31,30,31,30,31,31,30,31,30,31];
+      for(let m=0; m<12; m++) {
+        for(let d=0; d<MONTH_DAYS[m]; d++) {
+          const events = ch[m][d] || [];
+          let doy = d;
+          for(let i=0; i<m; i++) doy += MONTH_DAYS[i];
+          events.forEach(ev => {
+            let minutes = (doy+1) * firstDayOffset + ev.min;
+            const isOn = (ev.sign === '+') || (ev.type === 'on');
+            if(isOn) minutes |= FLAG;
+            rawEvents.push(minutes);
+          });
+        }
+      }
+    }
+    
+    rawEvents.sort((a,b) => (a & ~FLAG) - (b & ~FLAG));
+    dayEvents.push(rawEvents);
+  }
+  
+  const N1 = dayEvents[0]?.length || 0;
+  const N2 = dayEvents[1]?.length || 0;
+  const totalSize = 12 + (N1+N2)*4;
+  const buffer = new ArrayBuffer(totalSize);
+  const dv = new DataView(buffer);
+  const sigBytes = new TextEncoder().encode('eventc10');
+  for(let i=0; i<8; i++) dv.setUint8(i, sigBytes[i]);
+  dv.setUint16(8, N1, true);
+  dv.setUint16(10, N2, true);
+  let offset = 12;
+  for(let i=0; i<N1; i++) { dv.setUint32(offset, dayEvents[0][i], true); offset+=4; }
+  for(let i=0; i<N2; i++) { dv.setUint32(offset, dayEvents[1][i], true); offset+=4; }
+  return buffer;
+}
+
+// ── ЕКСПОРТ В .TXT ФОРМАТ ──
+function encodeToTxt() {
+  let result = '';
+  
+  for(let chIdx=0; chIdx<channels.length; chIdx++) {
+    result += `======== Всі події каналу №${chIdx+1} ========\n`;
+    result += `-- 01     02     03     04     05     06     07     08     09     10     11     12     \n`;
+    
+    let monthData = [];
+    const ch = channels[chIdx];
+    
+    if(Array.isArray(ch) && ch.length === 366) {
+      const MONTH_DAYS = [31,29,31,30,31,30,31,31,30,31,30,31];
+      monthData = Array.from({length:12}, ()=>Array.from({length:31}, ()=>[]));
+      let dayCounter = 0;
+      for(let m=0; m<12; m++) {
+        for(let d=0; d<MONTH_DAYS[m]; d++) {
+          if(dayCounter < 366) {
+            const events = ch[dayCounter] || [];
+            monthData[m][d] = events.map(ev => ({
+              sign: ev.type === 'on' ? '+' : '-',
+              min: ev.min
+            }));
+          }
+          dayCounter++;
+        }
+      }
+    } 
+    else if(Array.isArray(ch) && ch.length === 12) {
+      monthData = ch;
+    }
+    
+    for(let day=1; day<=31; day++) {
+      let hasAny = false;
+      for(let m=0; m<12; m++) {
+        const events = monthData[m][day-1] || [];
+        if(events.length) hasAny = true;
+      }
+      if(!hasAny) continue;
+      
+      let maxEvents = 0;
+      for(let m=0; m<12; m++) {
+        const events = monthData[m][day-1] || [];
+        if(events.length > maxEvents) maxEvents = events.length;
+      }
+      
+      for(let eventIdx=0; eventIdx<maxEvents; eventIdx++) {
+        let line;
+        if(eventIdx === 0) {
+          line = `${String(day).padStart(2,'0')} `;
+        } else {
+          line = '   ';
+        }
+        
+        for(let m=0; m<12; m++) {
+          const events = monthData[m][day-1] || [];
+          if(events.length > eventIdx) {
+            const ev = events[eventIdx];
+            const sign = ev.sign === '+' ? '+' : '-';
+            const timeStr = minToHHMM(ev.min);
+            line += `${sign}${timeStr}`.padEnd(7, ' ');
+          } else {
+            line += '       ';
+          }
+        }
+        result += line.trimEnd() + '\n';
+      }
+      result += '\n';
+    }
+  }
+  return result;
+}
+
+function showFormatDialog() {
+  if(!fileLoaded || !originalFileName) return;
+  document.getElementById('formatDialog').classList.add('show');
+}
+
+function closeFormatDialog() {
+  document.getElementById('formatDialog').classList.remove('show');
+}
+
+async function saveToFile(format) {
+  closeFormatDialog();
+
+  let content, mimeType, fileExt;
+  if(format === 'txt') {
+    content = encodeToTxt();
+    mimeType = 'text/plain';
+    fileExt = '.txt';
+  } else {
+    content = encodeToLc();
+    mimeType = 'application/octet-stream';
+    fileExt = '.lc';
+  }
+
+  let baseName = originalFileName.replace(/\.(lc|txt)$/i, '');
+  const fname = `${baseName}_edited${fileExt}`;
+
+  // Звичайний браузер — без змін, класичне завантаження через blob-посилання
+  if(!window.median) {
+    const blob = new Blob([content], {type: mimeType});
+    const downloadLink = document.createElement('a');
+    downloadLink.href = URL.createObjectURL(blob);
+    downloadLink.download = fname;
+    downloadLink.click();
+    URL.revokeObjectURL(downloadLink.href);
+    exitEditMode();
+    return;
+  }
+
+  // Усередині Median-додатку — через сервер (Cloudflare Worker),
+  // бо blob-посилання й Web Share API в цьому WebView не працюють.
+  // Для .lc додаємо подвійне розширення (.lc.lc), бо Android губить
+  // останній сегмент розширення для нерозпізнаного MIME-типу.
+  let medianFname = fname;
+  if(format !== 'txt') medianFname = fname + '.lc';
+
+  let payloadContent, isBase64;
+  if(format === 'txt') {
+    payloadContent = content;
+    isBase64 = false;
+  } else {
+    const bytes = new Uint8Array(content);
+    let binary = '';
+    for(let i=0; i<bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    payloadContent = btoa(binary);
+    isBase64 = true;
+  }
+
+  try {
+    const resp = await fetch(SAVE_FILE_UPLOAD_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({content: payloadContent, filename: medianFname, mimeType, isBase64})
+    });
+    const data = await resp.json();
+    if(data.url) {
+      lastSavedFilePath = data.url;
+      if(median.share && median.share.downloadFile) {
+        median.share.downloadFile({url: data.url, filename: medianFname, open: false});
+      } else {
+        window.location.href = data.url;
+      }
+    } else {
+      throw new Error(data.error || 'no url returned');
+    }
+  } catch(err) {
+    alert('Не вдалося зберегти файл. Перевірте інтернет-з\'єднання.\n\n' + err.message);
+  }
+  exitEditMode();
+}
+
+// ── ОБРОБКА ЖЕСТІВ (ГОРТАННЯ ЛІВОРУЧ/ПРАВОРУЧ) ──
+let touchStartX=0, touchStartY=0, touchIsMulti=false;
+let calDragActive=false, calDragDx=0, calWrapDragEl=null;
+const CAL_SWIPE_THRESHOLD = 60;
+const CAL_EDGE_SLOP = 2; // px допуску на похибку округлення
+
+// Свайп перемикає місяць тільки тоді, коли контент вже впирається в край.
+function calHScrollInfo(){
+  if(window.visualViewport && document.scrollingElement){
+    const vv = window.visualViewport;
+    const se = document.scrollingElement;
+    const maxScroll = Math.max(0, se.scrollWidth - vv.width);
+    if(maxScroll > CAL_EDGE_SLOP){
+      return { scrollLeft: vv.pageLeft, maxScroll };
+    }
+  }
+  const se = document.scrollingElement || document.documentElement;
+  return { scrollLeft: se.scrollLeft, maxScroll: Math.max(0, se.scrollWidth - se.clientWidth) };
+}
+
+// direction: 1 = свайп вліво (наступний місяць, потрібен правий край сторінки)
+//           -1 = свайп вправо (попередній місяць, потрібен лівий край сторінки)
+function calAtEdge(direction){
+  const { scrollLeft, maxScroll } = calHScrollInfo();
+  if(maxScroll <= CAL_EDGE_SLOP) return true; // сторінка не збільшена — краю немає, свайп завжди дозволений
+  return direction === 1 ? (scrollLeft >= maxScroll - CAL_EDGE_SLOP) : (scrollLeft <= CAL_EDGE_SLOP);
+}
+
+document.addEventListener('touchstart', e=>{
+  touchIsMulti = e.touches.length>1;
+  if(touchIsMulti){
+    cancelCellLongPress();
+    if(calDragActive && calWrapDragEl){
+      calWrapDragEl.style.transition = 'transform .15s ease, opacity .15s ease';
+      calWrapDragEl.style.transform = 'translateX(0)';
+      calWrapDragEl.style.opacity = '1';
+    }
+    calDragActive = false;
+    calWrapDragEl = null;
+  }
+  if(e.touches.length===1){
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    calDragActive = false;
+    calDragDx = 0;
+    calWrapDragEl = document.querySelector('#mainContent .calendar-wrap');
+  }
+}, {passive:true});
+
+document.addEventListener('touchmove', e=>{
+  if(e.touches.length>1){ touchIsMulti=true; cancelCellLongPress(); return; }
+  if(touchIsMulti || !calWrapDragEl) return;
+  const dx = e.touches[0].clientX - touchStartX;
+  const dy = e.touches[0].clientY - touchStartY;
+  if(!calDragActive){
+    if(Math.abs(dx) < 10 || Math.abs(dx) <= Math.abs(dy)*1.8) return;
+    const dir = dx<0 ? 1 : -1;
+    if(!calAtEdge(dir)){
+      // сторінка ще має, куди прокручуватись — не втручаємось, це звичайне панорамування
+      calWrapDragEl = null;
+      return;
+    }
+    calDragActive = true;
+    cancelCellLongPress();
+    calWrapDragEl.classList.remove('slide-from-right','slide-from-left');
+    calWrapDragEl.style.transition = 'none';
+    calWrapDragEl.style.willChange = 'transform, opacity';
+  }
+  calDragDx = dx;
+  const damp = dx * 0.85;
+  calWrapDragEl.style.transform = `translateX(${damp}px)`;
+  calWrapDragEl.style.opacity = String(Math.max(0.35, 1 - Math.abs(damp)/380));
+}, {passive:true});
+
+document.addEventListener('touchend', e=>{
+  if(touchIsMulti){ touchIsMulti=false; calDragActive=false; calWrapDragEl=null; return; }
+  if(calDragActive && calWrapDragEl){
+    const el = calWrapDragEl;
+    const dx = calDragDx;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    calDragActive = false;
+    calWrapDragEl = null;
+    if(Math.abs(dx)>CAL_SWIPE_THRESHOLD && Math.abs(dx)>Math.abs(dy)*1.8){
+      const dir = dx<0 ? 1 : -1;
+      const outX = dx<0 ? -(window.innerWidth) : window.innerWidth;
+      el.style.transition = 'transform .2s ease-in, opacity .2s ease-in';
+      el.style.transform = `translateX(${outX}px)`;
+      el.style.opacity = '0';
+      setTimeout(()=>{ changeMonth(dir); }, 170);
+    } else {
+      el.style.transition = 'transform .25s cubic-bezier(.25,.8,.35,1), opacity .25s ease';
+      el.style.transform = 'translateX(0)';
+      el.style.opacity = '1';
+    }
+    return;
+  }
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if(Math.abs(dx)>60 && Math.abs(dx)>Math.abs(dy)*1.8){
+    const dir = dx<0 ? 1 : -1;
+    if(calAtEdge(dir)) changeMonth(dir);
+  }
+}, {passive:true});
+
+// ── РЕНДЕРИНГ ОДНІЄЇ КЛІТИНКИ ДНЯ ──
+function buildDayCellHTML(date, day, month, year, visibleCells, today, extraClass) {
+  const isToday = !date.isVirtualFeb29 && date.getTime() === today.getTime();
+  const recs = getRecordsForDisplay(date);
+  const noData = fileLoaded && (!recs || recs.length===0);
+  const summer = isSummerTime(date);
+  const dstIcon = dstActive ? (summer ? '<span style="opacity:.7;font-size:10px">☀️</span>' : '<span style="opacity:.7;font-size:10px">❄️</span>') : '';
+  let cls = 'day-cell';
+  if(isToday) cls += ' today';
+  if(noData) cls += ' no-data';
+  if(extraClass) cls += ' ' + extraClass;
+  if(lastOpenedCell && lastOpenedCell.day === day && lastOpenedCell.month === month && lastOpenedCell.year === year && lastOpenedCell.channel === activeChannel) cls += ' last-opened';
+  const cellKey = `${activeChannel}-${year}-${month}-${day}`;
+  const highlightType = cellHighlights.get(cellKey);
+  if(highlightType === 'edited') cls += ' edited';
+  else if(highlightType === 'pasted') cls += ' pasted';
+  let html = `<div class="${cls}"
+    onclick="handleCellClick(${day},${month},${year})"
+    ontouchstart="startCellLongPress(${day},${month},${year},event)"
+    ontouchend="cancelCellLongPress()"
+    ontouchmove="cancelCellLongPress()"
+    onmousedown="startCellLongPress(${day},${month},${year})"
+    onmouseup="cancelCellLongPress()"
+    onmouseleave="cancelCellLongPress()"
+  >`;
+  html += `<div class="day-num"><span>${day}</span>${dstIcon}</div><div class="events" style="grid-template-rows:repeat(${visibleCells},1fr)">`;
+  if(recs && recs.length>0){
+    const hasMore = recs.length > visibleCells;
+    const showCount = hasMore ? visibleCells-1 : Math.min(recs.length, visibleCells);
+    recs.slice(0, showCount).forEach(ev => {
+      html += `<div class="event-chip ${ev.type==='on'?'chip-on':'chip-off'}">${minToHHMM(ev.min)}</div>`;
+    });
+    for(let s=showCount; s<visibleCells-(hasMore?1:0); s++) html += `<div class="event-chip chip-empty"></div>`;
+    if(hasMore) html += `<div class="chip-more">+${recs.length-showCount}</div>`;
+  } else {
+    for(let s=0; s<visibleCells; s++) html += `<div class="event-chip chip-empty"></div>`;
+  }
+  html += `</div></div>`;
+  return html;
+}
+
+// ── РЕНДЕРИНГ КАЛЕНДАРЯ ──
+function renderCalendar(){
+  document.getElementById('monthLabel').textContent = `${MONTH_UK[currentMonth]} ${currentYear}`;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const firstDay = new Date(currentYear, currentMonth, 1);
+  let startDow = firstDay.getDay();
+  startDow = startDow===0 ? 6 : startDow-1;
+  const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+  const showFeb29Placeholder = editMode && currentMonth === 1 && daysInMonth === 28;
+  const slideClass = calendarSlideDir === 'right' ? ' slide-from-right' : calendarSlideDir === 'left' ? ' slide-from-left' : '';
+  calendarSlideDir = null;
+  let html = `<div class="calendar-wrap${slideClass}"><div class="days-grid">`;
+  for(let i=0; i<startDow; i++) html += `<div class="day-cell empty"></div>`;
+  const visibleCells = getCellsCount();
+  for(let day=1; day<=daysInMonth; day++){
+    const date = new Date(currentYear, currentMonth, day);
+    date.setHours(0,0,0,0);
+    html += buildDayCellHTML(date, day, currentMonth, currentYear, visibleCells, today, null);
+  }
+  if(showFeb29Placeholder){
+    const virtualDate = makeCellDate(currentYear, 1, 29);
+    html += buildDayCellHTML(virtualDate, 29, 1, currentYear, visibleCells, today, 'virtual-day');
+  }
+  html += `</div></div>`;
+  document.getElementById('mainContent').innerHTML = html;
+}
+
+// ── КОНТЕКСТНЕ МЕНЮ КЛІТИНКИ (довге натискання в режимі редагування) ──
+function handleCellClick(day, month, year) {
+  if(cellLongPressFired) { cellLongPressFired = false; return; }
+  showModal(day, month, year);
+}
+
+function startCellLongPress(day, month, year, e) {
+  if(!editMode) return;
+  if(e && e.touches && e.touches.length > 1) return;
+  cellLongPressFired = false;
+  cellLongPressTimer = setTimeout(() => {
+    cellLongPressFired = true;
+    openCellMenu(day, month, year);
+  }, 500);
+}
+
+function cancelCellLongPress() {
+  if(cellLongPressTimer) { clearTimeout(cellLongPressTimer); cellLongPressTimer = null; }
+}
+
+function cellMenuLabel(t) {
+  return `${t.day} ${MONTH_UK[t.month]} ${t.year}`;
+}
+
+function openCellMenu(day, month, year) {
+  cellMenuTarget = { day, month, year, isVirtual: (month === 1 && day === 29 && !isLeapYear(year)) };
+  renderCellMenuRoot();
+  document.getElementById('cellMenuOverlay').classList.add('show');
+}
+
+function closeCellMenu(e) {
+  if(!e || e.target === document.getElementById('cellMenuOverlay')) {
+    document.getElementById('cellMenuOverlay').classList.remove('show');
+    cellMenuTarget = null;
+    pendingPasteData = null;
+  }
+}
+
+// ── БУФЕР ОБМІНУ ──
+async function writeClipboardData(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch(e) {
+    // Резервний спосіб — старий API, часто працює там, де Clipboard API заблоковано
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if(ok) return true;
+    } catch(e2) {}
+    return false;
+  }
+}
+
+let lastClipboardReadError = null;
+
+// ── КОМПАКТНИЙ ФОРМАТ БУФЕРА: "LC1|type|channel|дані" ──
+// Значно коротший за JSON — зменшує ризик обрізання тексту клавіатурою/буфером обміну.
+function encodeEvents(events) {
+  return (events || []).map(e => (e.type === 'on' ? 'n' : 'o') + e.min).join(',');
+}
+function decodeEvents(str) {
+  if(!str) return [];
+  return str.split(',').filter(Boolean).map(tok => ({
+    type: tok[0] === 'n' ? 'on' : 'off',
+    min: parseInt(tok.slice(1), 10)
+  }));
+}
+
+function encodeClipboardPayload(type, channel, src, data) {
+  let body = '';
+  if(type === 'day') {
+    body = encodeEvents(data.events);
+  } else if(type === 'week') {
+    body = data.days.map(d => `${d.dow}:${encodeEvents(d.events)}`).join(';');
+  } else if(type === 'month') {
+    body = `${data.month}|` + data.days.map(d => `${d.day}:${encodeEvents(d.events)}`).join(';');
+  } else if(type === 'year') {
+    body = data.days.map(d => `${d.month}-${d.day}:${encodeEvents(d.events)}`).join(';');
+  }
+  return `LC1|${type}|${channel}|${src.year}-${src.month}-${src.day}|${body}`;
+}
+
+function decodeClipboardPayload(text) {
+  const parts = text.split('|');
+  if(parts.length < 4 || parts[0] !== 'LC1') return null;
+  const type = parts[1];
+  const channel = parseInt(parts[2], 10) || 0;
+  if(!['day','week','month','year'].includes(type)) return null;
+  let src = null;
+  let rest;
+  if(parts.length >= 5 && /^\d+-\d+-\d+$/.test(parts[3])) {
+    const srcParts = parts[3].split('-').map(n => parseInt(n, 10));
+    src = { year: srcParts[0], month: srcParts[1], day: srcParts[2] };
+    rest = parts.slice(4).join('|');
+  } else {
+    // Старий формат без джерела копіювання — для сумісності
+    rest = parts.slice(3).join('|');
+  }
+  const result = { app: 'LC-Calendar-Clipboard', type, channel, src };
+  try {
+    if(type === 'day') {
+      result.events = decodeEvents(rest);
+    } else if(type === 'week') {
+      result.days = rest.split(';').filter(Boolean).map(tok => {
+        const [dowStr, evStr] = tok.split(':');
+        return { dow: parseInt(dowStr, 10), events: decodeEvents(evStr) };
+      });
+    } else if(type === 'month') {
+      const sepIdx = rest.indexOf('|');
+      const monthStr = sepIdx === -1 ? rest : rest.slice(0, sepIdx);
+      const daysStr = sepIdx === -1 ? '' : rest.slice(sepIdx + 1);
+      result.month = parseInt(monthStr, 10);
+      result.days = daysStr.split(';').filter(Boolean).map(tok => {
+        const [dayStr, evStr] = tok.split(':');
+        return { day: parseInt(dayStr, 10), events: decodeEvents(evStr) };
+      });
+    } else if(type === 'year') {
+      result.days = rest.split(';').filter(Boolean).map(tok => {
+        const [mdStr, evStr] = tok.split(':');
+        const [mStr, dStr] = mdStr.split('-');
+        return { month: parseInt(mStr, 10), day: parseInt(dStr, 10), events: decodeEvents(evStr) };
+      });
+    }
+  } catch(e) { return null; }
+  return result;
+}
+
+function parseClipboardText(text) {
+  if(!text) return null;
+  text = text.trim();
+  if(text.startsWith('LC1|')) {
+    return decodeClipboardPayload(text);
+  }
+  // Старий формат (JSON) — для сумісності з раніше скопійованими даними
+  try {
+    const data = JSON.parse(text);
+    if(data && data.app === 'LC-Calendar-Clipboard' && ['day','week','month','year'].includes(data.type)) {
+      return data;
+    }
+  } catch(e) {}
+  return null;
+}
+
+async function readClipboardData() {
+  lastClipboardReadError = null;
+  try {
+    const text = await navigator.clipboard.readText();
+    const parsed = parseClipboardText(text);
+    if(parsed) return parsed;
+    lastClipboardReadError = 'Дані в буфері не розпізнано як формат календаря';
+  } catch(e) {
+    lastClipboardReadError = e.message;
+  }
+  // Резервний спосіб — старий API, якщо Clipboard API заблоковано
+  try {
+    const ta = document.createElement('textarea');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    const ok = document.execCommand('paste');
+    const text = ta.value;
+    document.body.removeChild(ta);
+    if(ok && text) {
+      const parsed = parseClipboardText(text);
+      if(parsed) { lastClipboardReadError = null; return parsed; }
+    }
+  } catch(e2) {
+    if(!lastClipboardReadError) lastClipboardReadError = e2.message;
+  }
+  return null;
+}
+
+// ── ГОЛОВНЕ МЕНЮ КЛІТИНКИ ──
+function renderCellMenuRoot() {
+  const box = document.getElementById('cellMenuBox');
+  box.innerHTML = `
+    <div class="cell-menu-title">${cellMenuLabel(cellMenuTarget)}</div>
+    <button class="cell-menu-btn" onclick="renderCellMenuCopy()">📋 Копіювати</button>
+    <button class="cell-menu-btn danger" onclick="renderCellMenuDelete()">🗑️ Видалити</button>
+    <button class="cell-menu-btn active" id="cellMenuPasteBtn" onclick="renderCellMenuPaste()">📥 Вставити</button>
+    <button class="cell-menu-btn cancel" onclick="closeCellMenu()">Скасувати</button>
+  `;
+}
+
+// ── КОПІЮВАННЯ ──
+function renderCellMenuCopy() {
+  const box = document.getElementById('cellMenuBox');
+  const showWeek = !cellMenuTarget.isVirtual;
+  box.innerHTML = `
+    <div class="cell-menu-title">Що скопіювати?</div>
+    <button class="cell-menu-btn" onclick="doCopy('day')">📄 День</button>
+    ${showWeek ? `<button class="cell-menu-btn" onclick="doCopy('week')">🗓️ Тиждень</button>` : ''}
+    <button class="cell-menu-btn" onclick="doCopy('month')">📅 Місяць</button>
+    <button class="cell-menu-btn" onclick="doCopy('year')">📆 Рік</button>
+    <button class="cell-menu-btn cancel" onclick="renderCellMenuRoot()">⬅️ Назад</button>
+  `;
+}
+
+function collectWeekData(day, month, year) {
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  let firstDow = new Date(year, month, 1).getDay();
+  firstDow = firstDow === 0 ? 6 : firstDow - 1;
+  const cellIndex = firstDow + (day - 1);
+  const weekStartIndex = cellIndex - (cellIndex % 7);
+  const days = [];
+  for(let idx = weekStartIndex; idx < weekStartIndex + 7; idx++) {
+    const dnum = idx - firstDow + 1;
+    if(dnum < 1 || dnum > daysInMonth) continue;
+    const date = makeCellDate(year, month, dnum);
+    days.push({ dow: idx % 7, day: dnum, events: getRecordsRaw(date) || [] });
+  }
+  return days;
+}
+
+function collectMonthData(month, year) {
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const days = [];
+  for(let d=1; d<=daysInMonth; d++) {
+    days.push({ day: d, events: getRecordsRaw(makeCellDate(year, month, d)) || [] });
+  }
+  if(month === 1 && daysInMonth === 28) {
+    days.push({ day: 29, events: getRecordsRaw(makeCellDate(year, 1, 29)) || [] });
+  }
+  return days;
+}
+
+function collectYearData(year) {
+  const days = [];
+  for(let m=0; m<12; m++) {
+    const dim = new Date(year, m+1, 0).getDate();
+    for(let d=1; d<=dim; d++) {
+      days.push({ month: m, day: d, events: getRecordsRaw(makeCellDate(year, m, d)) || [] });
+    }
+    if(m === 1 && dim === 28) {
+      days.push({ month: 1, day: 29, events: getRecordsRaw(makeCellDate(year, 1, 29)) || [] });
+    }
+  }
+  return days;
+}
+
+async function doCopy(type) {
+  const { day, month, year } = cellMenuTarget;
+  const data = {};
+  if(type === 'day') {
+    data.events = getRecordsRaw(makeCellDate(year, month, day)) || [];
+  } else if(type === 'week') {
+    data.days = collectWeekData(day, month, year);
+  } else if(type === 'month') {
+    data.month = month;
+    data.days = collectMonthData(month, year);
+  } else if(type === 'year') {
+    data.days = collectYearData(year);
+  }
+  const text = encodeClipboardPayload(type, activeChannel, { year, month, day }, data);
+  const ok = await writeClipboardData(text);
+  if(ok) {
+    closeCellMenu();
+  } else {
+    showManualCopyFallback(text);
+  }
+}
+
+function showManualCopyFallback(text) {
+  const box = document.getElementById('cellMenuBox');
+  box.innerHTML = `
+    <div class="cell-menu-title">Не вдалося скопіювати автоматично</div>
+    <div class="cell-menu-sub">Виділіть текст нижче й скопіюйте вручну (довге натискання → Виділити все → Копіювати):</div>
+    <textarea class="cell-menu-textarea" id="manualCopyArea" readonly onclick="this.focus();this.select();">${text}</textarea>
+    <button class="cell-menu-btn cancel" onclick="closeCellMenu()">Готово</button>
+  `;
+  setTimeout(() => {
+    const ta = document.getElementById('manualCopyArea');
+    if(ta) { ta.focus(); ta.select(); }
+  }, 50);
+}
+
+// ── ВИДАЛЕННЯ ──
+function renderCellMenuDelete() {
+  const box = document.getElementById('cellMenuBox');
+  const showWeek = !cellMenuTarget.isVirtual;
+  box.innerHTML = `
+    <div class="cell-menu-title">Що видалити?</div>
+    <button class="cell-menu-btn danger" onclick="confirmDelete('day')">📄 День</button>
+    ${showWeek ? `<button class="cell-menu-btn danger" onclick="confirmDelete('week')">🗓️ Тиждень</button>` : ''}
+    <button class="cell-menu-btn danger" onclick="confirmDelete('month')">📅 Місяць</button>
+    <button class="cell-menu-btn danger" onclick="confirmDelete('year')">📆 Рік</button>
+    <button class="cell-menu-btn cancel" onclick="renderCellMenuRoot()">⬅️ Назад</button>
+  `;
+}
+
+function confirmDelete(type) {
+  const box = document.getElementById('cellMenuBox');
+  const labelMap = { day: 'день', week: 'тиждень', month: 'місяць', year: 'рік' };
+  box.innerHTML = `
+    <div class="cell-menu-title">⚠️ Видалити всі дані за ${labelMap[type]}?</div>
+    <div class="cell-menu-sub">Цю дію не можна скасувати.</div>
+    <button class="cell-menu-btn danger" onclick="doDelete('${type}')">Так, видалити</button>
+    <button class="cell-menu-btn cancel" onclick="renderCellMenuDelete()">Скасувати</button>
+  `;
+}
+
+function doDelete(type) {
+  const { day, month, year } = cellMenuTarget;
+  if(type === 'day') {
+    saveEventsDirect(makeCellDate(year, month, day), []);
+    cellHighlights.set(`${activeChannel}-${year}-${month}-${day}`, 'edited');
+  } else if(type === 'week') {
+    collectWeekData(day, month, year).forEach(d => {
+      saveEventsDirect(makeCellDate(year, month, d.day), []);
+      cellHighlights.set(`${activeChannel}-${year}-${month}-${d.day}`, 'edited');
+    });
+  } else if(type === 'month') {
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    for(let d=1; d<=daysInMonth; d++) {
+      saveEventsDirect(makeCellDate(year, month, d), []);
+      cellHighlights.set(`${activeChannel}-${year}-${month}-${d}`, 'edited');
+    }
+    if(month === 1 && daysInMonth === 28) {
+      saveEventsDirect(makeCellDate(year, 1, 29), []);
+      cellHighlights.set(`${activeChannel}-${year}-1-29`, 'edited');
+    }
+  } else if(type === 'year') {
+    for(let m=0; m<12; m++) {
+      const dim = new Date(year, m+1, 0).getDate();
+      for(let d=1; d<=dim; d++) {
+        saveEventsDirect(makeCellDate(year, m, d), []);
+        cellHighlights.set(`${activeChannel}-${year}-${m}-${d}`, 'edited');
+      }
+      if(m === 1 && dim === 28) {
+        saveEventsDirect(makeCellDate(year, 1, 29), []);
+        cellHighlights.set(`${activeChannel}-${year}-1-29`, 'edited');
+      }
+    }
+  }
+  closeCellMenu();
+  renderCalendar();
+}
+
+// ── ВСТАВКА ──
+async function renderCellMenuPaste() {
+  const box = document.getElementById('cellMenuBox');
+  const clip = await readClipboardData();
+  pendingPasteData = clip;
+  if(!clip) {
+    box.innerHTML = `
+      <div class="cell-menu-title">Вставте скопійований текст</div>
+      <div class="cell-menu-sub">Довге натискання в полі → Вставити:</div>
+      <textarea class="cell-menu-textarea" id="manualPasteArea" placeholder="Встав сюди скопійований текст" autofocus></textarea>
+      <div class="cell-menu-sub" id="manualPasteError" style="display:none;color:#f87171;"></div>
+      <button class="cell-menu-btn active" onclick="applyManualPaste()">Застосувати</button>
+      <button class="cell-menu-btn cancel" onclick="renderCellMenuRoot()">⬅️ Назад</button>
+    `;
+    const ta = document.getElementById('manualPasteArea');
+    if(ta) setTimeout(() => ta.focus(), 50);
+    return;
+  }
+  showPasteConfirm(clip);
+}
+
+function showPasteConfirm(clip) {
+  const box = document.getElementById('cellMenuBox');
+  const labelMap = { day: '📄 День', week: '🗓️ Тиждень', month: '📅 Місяць', year: '📆 Рік' };
+  const hasSrc = !!clip.src;
+  box.innerHTML = `
+    <div class="cell-menu-title">Вставити скопійоване?</div>
+    <button class="cell-menu-btn" onclick="doPaste()">${labelMap[clip.type]}</button>
+    ${hasSrc ? `
+    <label class="cell-menu-anchor">
+      <input type="checkbox" id="pasteAnchorCheckbox" checked>
+      <span>&nbsp;&nbsp;&nbsp;&nbsp;📌&nbsp; Прив'язка до дати</span>
+    </label>
+    ` : ''}
+    <button class="cell-menu-btn cancel" onclick="renderCellMenuRoot()">⬅️ Назад</button>
+  `;
+}
+
+function applyManualPaste() {
+  const ta = document.getElementById('manualPasteArea');
+  const errEl = document.getElementById('manualPasteError');
+  const parsed = parseClipboardText(ta ? ta.value : '');
+  if(!parsed) {
+    if(errEl) {
+      errEl.style.display = 'block';
+      errEl.textContent = 'Не вдалося розпізнати дані. Перевірте, що скопійовано весь текст.';
+    }
+    return;
+  }
+  pendingPasteData = parsed;
+  showPasteConfirm(parsed);
+}
+
+function doPaste() {
+  if(!pendingPasteData || !cellMenuTarget) { closeCellMenu(); return; }
+  const clip = pendingPasteData;
+  const anchorEl = document.getElementById('pasteAnchorCheckbox');
+  const useAnchor = anchorEl ? anchorEl.checked : false;
+  const target = (useAnchor && clip.src) ? clip.src : cellMenuTarget;
+  const { day, month, year } = target;
+  const newPasted = new Set();
+
+  if(clip.type === 'day') {
+    saveEventsDirect(makeCellDate(year, month, day), clip.events || []);
+    newPasted.add(`${activeChannel}-${year}-${month}-${day}`);
+  } else if(clip.type === 'week') {
+    let firstDow = new Date(year, month, 1).getDay();
+    firstDow = firstDow === 0 ? 6 : firstDow - 1;
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    const cellIndex = firstDow + (day - 1);
+    const weekStartIndex = cellIndex - (cellIndex % 7);
+    (clip.days || []).forEach(src => {
+      const idx = weekStartIndex + src.dow;
+      const dnum = idx - firstDow + 1;
+      if(dnum < 1 || dnum > daysInMonth) return;
+      saveEventsDirect(makeCellDate(year, month, dnum), src.events || []);
+      newPasted.add(`${activeChannel}-${year}-${month}-${dnum}`);
+    });
+  } else if(clip.type === 'month') {
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    (clip.days || []).forEach(src => {
+      if(src.day === 29 && month === 1 && daysInMonth === 28) {
+        saveEventsDirect(makeCellDate(year, 1, 29), src.events || []);
+        newPasted.add(`${activeChannel}-${year}-1-29`);
+        return;
+      }
+      if(src.day > daysInMonth) return;
+      saveEventsDirect(makeCellDate(year, month, src.day), src.events || []);
+      newPasted.add(`${activeChannel}-${year}-${month}-${src.day}`);
+    });
+  } else if(clip.type === 'year') {
+    (clip.days || []).forEach(src => {
+      const dim = new Date(year, src.month+1, 0).getDate();
+      if(src.day === 29 && src.month === 1 && dim === 28) {
+        saveEventsDirect(makeCellDate(year, 1, 29), src.events || []);
+        newPasted.add(`${activeChannel}-${year}-1-29`);
+        return;
+      }
+      if(src.day > dim) return;
+      saveEventsDirect(makeCellDate(year, src.month, src.day), src.events || []);
+      newPasted.add(`${activeChannel}-${year}-${src.month}-${src.day}`);
+    });
+  }
+
+  newPasted.forEach(k => cellHighlights.set(k, 'pasted'));
+  pendingPasteData = null;
+  closeCellMenu();
+  renderCalendar();
+}
+
+// ── ВІДКРИТТЯ МОДАЛЬНОГО ВІКНА (ПЕРЕГЛЯД АБО РЕДАГУВАННЯ) ──
+function showModal(day, month, year) {
+  const date = makeCellDate(year, month, day);
+  const dayNames = ['Неділя', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'П\'ятниця', 'Субота'];
+  const summer = isSummerTime(date);
+  const dayNameLabel = date.isVirtualFeb29 ? '' : `${dayNames[date.getDay()]}, `;
+  
+  lastOpenedCell = { day, month, year, channel: activeChannel };
+  renderCalendar();
+  
+  document.getElementById('modalTitle').innerHTML =
+    `<span>${dayNameLabel}${day} ${MONTH_UK[month]} ${year} · К${activeChannel+1}</span>${dstActive?`<span style="opacity:.7">${summer?'☀️':'❄️'}</span>`:''}`;
+  
+  const modalEl = document.querySelector('.modal');
+  if(editMode && fileLoaded && ENABLE_EDIT_MODE) {
+    modalEl.classList.add('edit-mode');
+    // РЕЖИМ РЕДАГУВАННЯ
+    currentEditDate = makeCellDate(year, month, day);
+    const rawEvents = getRecordsRaw(currentEditDate) || [];
+    currentEditEvents = rawEvents.map(e => ({ type: e.type, min: e.min }));
+    const displayEvents = applyDSTForDisplay(currentEditEvents.map(e => ({ ...e })), currentEditDate);
+    renderEditEventsList(displayEvents);
+  } else {
+    modalEl.classList.remove('edit-mode');
+    // ЗВИЧАЙНИЙ РЕЖИМ ПЕРЕГЛЯДУ (як у оригіналі)
+    document.getElementById('editSection').style.display = 'none';
+    const recs = getRecordsForDisplay(date);
+    if(!recs || !recs.length){
+      document.getElementById('modalEvents').innerHTML = '<div class="no-data-message">📭 Немає даних для цього дня</div>';
+    } else {
+      document.getElementById('modalEvents').innerHTML = recs.map(ev => {
+        const isOn = ev.type === 'on';
+        return `<div class="modal-event">
+          <div class="modal-event-time" style="color:${isOn?'var(--accent-on)':'var(--accent-off)'}">${minToHHMM(ev.min)}</div>
+          <div class="modal-event-label">${isOn?'Увімкнення':'Вимкнення'}</div>
+          <div class="modal-event-badge ${isOn?'badge-on':'badge-off'}">${isOn?'ON':'OFF'}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+// ============================================================
+// ФУНКЦІЇ РЕЖИМУ РЕДАГУВАННЯ (тільки якщо ENABLE_EDIT_MODE = true)
+// ============================================================
+
+function toggleAddEventType() {
+  newEventType = newEventType === 'on' ? 'off' : 'on';
+  const toggleBtn = document.getElementById('addEventTypeToggle');
+  const container = document.getElementById('addEventTimeContainer');
+  if(toggleBtn) {
+    toggleBtn.className = `add-event-type-toggle ${newEventType}`;
+    toggleBtn.textContent = newEventType.toUpperCase();
+  }
+  if(container) {
+    container.className = `add-event-time-container ${newEventType}`;
+  }
+}
+
+function focusAndSelect(element) {
+  element.focus();
+  element.select();
+}
+
+function handleHoursInput(input, idx) {
+  let value = input.value.replace(/[^0-9]/g, '');
+  if(value.length > 2) value = value.slice(0,2);
+  let num = parseInt(value);
+  if(num > 23) value = '23';
+  input.value = value;
+  
+  if(value.length === 2) {
+    const newIdx = updateEventTimeFromFields(idx);
+    const targetIdx = (newIdx === null || newIdx === undefined) ? idx : newIdx;
+    const minutesInput = document.querySelector(`.edit-event-minutes[data-idx="${targetIdx}"]`);
+    if(minutesInput) {
+      minutesInput.focus();
+      minutesInput.select();
+    }
+  }
+}
+
+function handleMinutesInput(input, idx) {
+  let value = input.value.replace(/[^0-9]/g, '');
+  if(value.length > 2) value = value.slice(0,2);
+  let num = parseInt(value);
+  if(num > 59) value = '59';
+  input.value = value;
+  
+  if(value.length === 2) {
+    input.blur();
+    updateEventTimeFromFields(idx);
+  }
+}
+
+function handleAddHoursInput(input) {
+  let value = input.value.replace(/[^0-9]/g, '');
+  if(value.length > 2) value = value.slice(0,2);
+  let num = parseInt(value);
+  if(num > 23) value = '23';
+  input.value = value;
+  
+  if(value.length === 2) {
+    const minutesInput = document.getElementById('addEventMinutes');
+    if(minutesInput) {
+      minutesInput.focus();
+      minutesInput.select();
+    }
+  }
+}
+
+function handleAddMinutesInput(input) {
+  let value = input.value.replace(/[^0-9]/g, '');
+  if(value.length > 2) value = value.slice(0,2);
+  let num = parseInt(value);
+  if(num > 59) value = '59';
+  input.value = value;
+}
+
+function renderEditEventsList(displayEvents = null) {
+  const eventsToShow = displayEvents || applyDSTForDisplay(currentEditEvents.map(e => ({ ...e })), currentEditDate);
+  
+  let html = '';
+  if(!eventsToShow || !eventsToShow.length) {
+    html = '<div class="no-data-message">📭 Немає даних для цього дня</div>';
+  } else {
+    eventsToShow.sort((a,b) => a.min - b.min);
+    html = eventsToShow.map((ev, idx) => {
+      const winterEvent = currentEditEvents[idx];
+      const eventType = winterEvent ? winterEvent.type : ev.type;
+      const hours = String(Math.floor(ev.min / 60)).padStart(2, '0');
+      const minutes = String(ev.min % 60).padStart(2, '0');
+      return `
+      <div class="modal-event">
+        <div class="edit-event-time-container ${eventType}">
+          <input type="text" class="edit-event-hours" value="${hours}" data-idx="${idx}" data-part="hours" maxlength="2" inputmode="numeric" 
+            onfocus="focusAndSelect(this)" oninput="handleHoursInput(this, ${idx})">
+          <span class="time-separator">:</span>
+          <input type="text" class="edit-event-minutes" value="${minutes}" data-idx="${idx}" data-part="minutes" maxlength="2" inputmode="numeric"
+            onfocus="focusAndSelect(this)" oninput="handleMinutesInput(this, ${idx})">
+        </div>
+        <div class="edit-event-type ${eventType}" data-idx="${idx}" onclick="toggleEventType(this, '${eventType}')">${eventType.toUpperCase()}</div>
+        <button class="delete-event-btn" onclick="deleteEvent(${idx})">🗑</button>
+      </div>
+    `}).join('');
+  }
+  
+  document.getElementById('modalEvents').innerHTML = html;
+  
+  const editSection = document.getElementById('editSection');
+  editSection.innerHTML = `
+    <div class="add-event-section">
+      <div class="add-event-title">➕ Додати подію</div>
+      <div class="add-event-controls">
+        <div id="addEventTimeContainer" class="add-event-time-container ${newEventType}">
+          <input type="text" id="addEventHours" class="add-event-hours" value="12" maxlength="2" inputmode="numeric" 
+            onfocus="focusAndSelect(this)" oninput="handleAddHoursInput(this)">
+          <span class="time-separator">:</span>
+          <input type="text" id="addEventMinutes" class="add-event-minutes" value="00" maxlength="2" inputmode="numeric"
+            onfocus="focusAndSelect(this)" oninput="handleAddMinutesInput(this)">
+        </div>
+        <div id="addEventTypeToggle" class="add-event-type-toggle ${newEventType}" onclick="toggleAddEventType()">${newEventType.toUpperCase()}</div>
+        <button class="add-event-submit" onclick="addNewEvent()">+</button>
+      </div>
+    </div>
+  `;
+  editSection.style.display = 'block';
+}
+
+function updateEventTimeFromFields(idx) {
+  const hoursField = document.querySelector(`.edit-event-hours[data-idx="${idx}"]`);
+  const minutesField = document.querySelector(`.edit-event-minutes[data-idx="${idx}"]`);
+  if(!hoursField || !minutesField) return;
+  
+  let h = parseInt(hoursField.value) || 0;
+  let m = parseInt(minutesField.value) || 0;
+  if(h > 23) h = 23;
+  if(m > 59) m = 59;
+  
+  const totalMinutes = h * 60 + m;
+  let winterMinutes = totalMinutes;
+  
+  if(dstActive && isSummerTime(currentEditDate)) {
+    winterMinutes = totalMinutes - 60;
+    if(winterMinutes < 0) winterMinutes += 1440;
+    if(winterMinutes >= 1440) winterMinutes -= 1440;
+  }
+  
+  const duplicate = currentEditEvents.some((ev, i) => i !== idx && ev.min === winterMinutes && ev.type === currentEditEvents[idx].type);
+  if(duplicate) {
+    const displayEvents = applyDSTForDisplay(currentEditEvents.map(e => ({ ...e })), currentEditDate);
+    renderEditEventsList(displayEvents);
+    return null;
+  }
+  
+  const editedEvent = currentEditEvents[idx];
+  editedEvent.min = winterMinutes;
+  currentEditEvents.sort((a,b) => a.min - b.min);
+  const newIdx = currentEditEvents.indexOf(editedEvent);
+  const displayEvents = applyDSTForDisplay(currentEditEvents.map(e => ({ ...e })), currentEditDate);
+  renderEditEventsList(displayEvents);
+  return newIdx;
+}
+
+function toggleEventType(element, currentType) {
+  const newType = currentType === 'on' ? 'off' : 'on';
+  const idx = parseInt(element.getAttribute('data-idx'));
+  if(!isNaN(idx) && idx >= 0 && idx < currentEditEvents.length) {
+    currentEditEvents[idx].type = newType;
+    const container = document.querySelector(`.edit-event-time-container[data-idx]`);
+    if(container) {
+      container.className = `edit-event-time-container ${newType}`;
+    }
+    const displayEvents = applyDSTForDisplay(currentEditEvents.map(e => ({ ...e })), currentEditDate);
+    renderEditEventsList(displayEvents);
+  }
+}
+
+function deleteEvent(idx) {
+  if(idx >= 0 && idx < currentEditEvents.length) {
+    currentEditEvents.splice(idx, 1);
+    const displayEvents = applyDSTForDisplay(currentEditEvents.map(e => ({ ...e })), currentEditDate);
+    renderEditEventsList(displayEvents);
+  }
+}
+
+function addNewEvent() {
+  if(!currentEditDate) return;
+  
+  const hoursField = document.getElementById('addEventHours');
+  const minutesField = document.getElementById('addEventMinutes');
+  if(!hoursField || !minutesField) return;
+  
+  let h = parseInt(hoursField.value) || 0;
+  let m = parseInt(minutesField.value) || 0;
+  if(h > 23) h = 23;
+  if(m > 59) m = 59;
+  
+  let totalMinutes = h * 60 + m;
+  let winterMinutes = totalMinutes;
+  
+  if(dstActive && isSummerTime(currentEditDate)) {
+    winterMinutes = totalMinutes - 60;
+    if(winterMinutes < 0) winterMinutes += 1440;
+    if(winterMinutes >= 1440) winterMinutes -= 1440;
+  }
+  
+  const exists = currentEditEvents.some(e => e.min === winterMinutes && e.type === newEventType);
+  if(exists) return;
+  
+  currentEditEvents.push({ type: newEventType, min: winterMinutes });
+  currentEditEvents.sort((a,b) => a.min - b.min);
+  const displayEvents = applyDSTForDisplay(currentEditEvents.map(e => ({ ...e })), currentEditDate);
+  renderEditEventsList(displayEvents);
+  
+  hoursField.value = '12';
+  minutesField.value = '00';
+}
+
+function saveDayChanges() {
+  if(!currentEditDate) return;
+  
+  currentEditEvents.sort((a,b) => a.min - b.min);
+  const success = saveEventsDirect(currentEditDate, currentEditEvents);
+  
+  if(success) {
+    cellHighlights.set(`${activeChannel}-${currentEditDate.getFullYear()}-${currentEditDate.getMonth()}-${currentEditDate.getDate()}`, 'edited');
+    renderCalendar();
+    closeModal();
+  }
+}
+
+function closeModal(e) {
+  if(!e || e.target === document.getElementById('modalOverlay') || (e.target && e.target.classList && e.target.classList.contains('modal-close'))) {
+    document.getElementById('modalOverlay').classList.remove('show');
+    currentEditDate = null;
+    currentEditEvents = [];
+  }
+}
+
+// ── РОЗРАХУНОК КІЛЬКОСТІ ВИДИМИХ ЯЧЕЙОК ──
+let _globalCellsCache = null;
+
+function getCellsCount() {
+  if (CELLS_MODE >= 1 && CELLS_MODE <= 4) return CELLS_MODE;
+  if (!fileLoaded) return 1;
+  if (_globalCellsCache !== null) return _globalCellsCache;
+  const savedChannel = activeChannel;
+  let maxCount = 0;
+  const MONTH_DAYS_SCAN = [31,28,31,30,31,30,31,31,30,31,30,31];
+  for (const chIdx of channels.map((_, i) => i)) {
+    activeChannel = chIdx;
+    for (let m = 0; m < 12; m++) {
+      for (let day = 1; day <= MONTH_DAYS_SCAN[m]; day++) {
+        const date = new Date(2025, m, day);
+        date.setHours(0, 0, 0, 0);
+        const recs = getRecordsRaw(date);
+        if (recs && recs.length > maxCount) maxCount = recs.length;
+        if (maxCount >= 4) break;
+      }
+    }
+  }
+  activeChannel = savedChannel;
+  // Якщо даних ще немає взагалі (порожній/новостворений файл) — одразу резервуємо
+  // максимум 4 рядки, щоб клітинки не "росли" при вставці подій.
+  _globalCellsCache = maxCount > 0 ? Math.min(maxCount, 4) : 4;
+  return _globalCellsCache;
+}
+
+function resetCellsCache() { _globalCellsCache = null; }
+
+// ── ПОЧАТКОВА ІНІЦІАЛІЗАЦІЯ ──
+if(DEFAULT_DST){
+  dstActive = true;
+  const btn = document.getElementById('btnDST');
+  btn.textContent = '☀️';
+  btn.classList.add('active');
+}
+
+function applyLoadedChannels(){
+  numChannels = channels.length;
+  activeChannel = 0;
+  fileLoaded = true;
+  document.getElementById('chBtns').style.display = numChannels>=2?'flex':'none';
+  document.getElementById('btnK1').classList.add('active');
+  document.getElementById('btnK2').classList.remove('active');
+  resetCellsCache();
+  goToToday();
+}
+
+function loadEmbeddedFile(){
+  if(!EMBEDDED_FILE.trim()) return false;
+  try{
+    isTxtFile = true;
+    channels = parseTxt(new TextEncoder().encode(EMBEDDED_FILE));
+    originalFileName = EMBEDDED_FILE_NAME + '.txt';
+    fitFileName(EMBEDDED_FILE_NAME);
+    applyLoadedChannels();
+    return true;
+  }catch(e){ console.error('Помилка вбудованого файлу:', e); return false; }
+}
+
+// Намагається завантажити файл розкладу за посиланням SCHEDULE_URL.
+// Повертає true, якщо дані успішно завантажені та застосовані.
+async function loadScheduleFromUrl(){
+  const url = SCHEDULE_URL.trim();
+  if(!url) return false;
+  try{
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const buffer = await resp.arrayBuffer();
+    // Реальна назва файлу з сервера (наприклад, від Worker'а - справжнє ім'я файлу
+    // з Google Drive, без розширення). HTTP-заголовки не підтримують кирилицю напряму,
+    // тому сервер передає назву у вигляді encodeURIComponent - тут її розкодовуємо назад.
+    // Якщо заголовка немає або він пошкоджений - буде порожньою, і тоді використовується
+    // SCHEDULE_URL_FILE_NAME як резервна назва.
+    let rawSourceName = '';
+    try{ rawSourceName = decodeURIComponent(resp.headers.get('X-Source-File-Name') || ''); }
+    catch(e){ rawSourceName = resp.headers.get('X-Source-File-Name') || ''; }
+    const sourceNameNoExt = rawSourceName.replace(/\.(txt|lc)$/i, '').trim();
+    const fallbackName = sourceNameNoExt || SCHEDULE_URL_FILE_NAME;
+    // Визначення типу файлу (txt/lc): спочатку за розширенням у самому посиланні
+    // (якщо воно є) - для зворотної сумісності. Якщо розширення в посиланні немає
+    // (посилання "універсальне", без .txt/.lc) - визначаємо тип за заголовками
+    // відповіді сервера: реальною назвою файлу (X-Source-File-Name) або Content-Type.
+    const urlPath = url.split(/[?#]/)[0].toLowerCase();
+    let isTxtUrl;
+    if(urlPath.endsWith('.txt')){
+      isTxtUrl = true;
+    } else if(urlPath.endsWith('.lc')){
+      isTxtUrl = false;
+    } else {
+      const contentType = (resp.headers.get('Content-Type') || '').toLowerCase();
+      isTxtUrl = rawSourceName.toLowerCase().endsWith('.txt') || contentType.includes('text/plain');
+    }
+    if(isTxtUrl){
+      // Кодування визначається ОДИН раз тут, і розкодований текст іде напряму
+      // в parseTxtLines - без повторного (і ненадійного) визначення кодування всередині.
+      const encoding = detectTextEncoding(buffer);
+      const text = encoding === 'utf-8'
+        ? new TextDecoder('utf-8').decode(buffer)
+        : new TextDecoder('windows-1251').decode(buffer);
+      const breakIdx = text.indexOf('\n');
+      const firstLine = (breakIdx === -1 ? text : text.substring(0, breakIdx)).replace(/\r$/, '');
+      let nameToUse, contentToParse;
+      if(firstLine.trim() !== '' && !firstLine.startsWith('=')){
+        nameToUse = firstLine.trim();
+        contentToParse = breakIdx === -1 ? '' : text.substring(breakIdx + 1);
+      } else {
+        nameToUse = fallbackName;
+        contentToParse = text;
+      }
+      isTxtFile = true;
+      channels = parseTxtLines(contentToParse);
+      originalFileName = nameToUse + '.txt';
+      fitFileName(SHOW_FILE_EXTENSION ? originalFileName : nameToUse);
+    } else {
+      isTxtFile = false;
+      channels = buildChannels(parseLc(buffer));
+      originalFileName = fallbackName + '.lc';
+      fitFileName(SHOW_FILE_EXTENSION ? originalFileName : fallbackName);
+    }
+    applyLoadedChannels();
+    return true;
+  }catch(e){
+    console.error('Помилка завантаження розкладу за посиланням:', e);
+    alert('Не вдалося завантажити розклад за посиланням: ' + e.message);
+    return false;
+  }
+}
+
+(async function initSchedule(){
+  const loadedFromUrl = await loadScheduleFromUrl();
+  if(!loadedFromUrl) loadEmbeddedFile();
+  // якщо ні посилання, ні вбудований файл не дали даних - залишається стартова сторінка
+})();
+
+// Глобальні функції для HTML
+window.focusAndSelect = focusAndSelect;
+window.handleHoursInput = handleHoursInput;
+window.handleMinutesInput = handleMinutesInput;
+window.handleAddHoursInput = handleAddHoursInput;
+window.handleAddMinutesInput = handleAddMinutesInput;
+window.updateEventTimeFromFields = updateEventTimeFromFields;
+window.toggleEventType = toggleEventType;
+window.deleteEvent = deleteEvent;
+window.toggleAddEventType = toggleAddEventType;
+window.addNewEvent = addNewEvent;
+window.saveDayChanges = saveDayChanges;
+window.closeModal = closeModal;
+window.showModal = showModal;
+window.changeMonth = changeMonth;
+window.goToToday = goToToday;
+window.navBtnClick = navBtnClick;
+window.monthLabelClick = monthLabelClick;
+window.setChannel = setChannel;
+window.toggleDST = toggleDST;
+window.showFormatDialog = showFormatDialog;
+window.saveToFile = saveToFile;
+window.closeFormatDialog = closeFormatDialog;
+window.loadFile = loadFile;
+</script>
+<!--
+<style>html { zoom: 0.98; touch-action: manipulation !important; }</style>
+-->
+<style>html, body { touch-action: manipulation !important; }</style>
+<style>html, body, button, a, div { touch-action: manipulation !important; -webkit-tap-highlight-color: transparent; }</style>
+<!---
+<style>.day-cell:active, .nav-btn:active, .ch-btn:active, .dst-btn:active, .file-btn:active, .upload-big-btn:active { transform: scale(0.93) !important; opacity: 0.7 !important; transition: transform 0.05s ease !important; }</style>
+<style>html, body, button, a, div { touch-action: manipulation !important; -webkit-tap-highlight-color: rgba(74, 158, 255, 0.4) !important; }</style>
+
+<style>html, body, button, a, div { touch-action: manipulation !important; -webkit-tap-highlight-color: rgba(74, 158, 255, 0.4) !important; } .nav-btn:active, .ch-btn:active, .dst-btn:active, .file-btn:active, .day-cell:active { background-color: rgba(74, 158, 255, 0.3) !important; transform: scale(0.95) !important; }</style>
+-->
+<script>document.addEventListener('touchstart',function(e){let t=e.target.closest('button, .day-cell, .nav-btn, .ch-btn, .dst-btn, .file-btn, .month-label');t&&(t.style.backgroundColor='rgba(74, 158, 255, 0.5)',t.style.transform='scale(0.95)')},{passive:!0}),document.addEventListener('touchend',function(e){let t=e.target.closest('button, .day-cell, .nav-btn, .ch-btn, .dst-btn, .file-btn, .month-label');t&&setTimeout(()=>{t.style.backgroundColor='',t.style.transform=''},70)},{passive:!0}),document.addEventListener('touchcancel',function(e){let t=e.target.closest('button, .day-cell, .nav-btn, .ch-btn, .dst-btn, .file-btn, .month-label');t&&(t.style.backgroundColor='',t.style.transform='')},{passive:!0});</script>
+</body>
+</html>
